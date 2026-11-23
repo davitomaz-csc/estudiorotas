@@ -710,7 +710,7 @@ body:not([data-mod="base"]) .ptleg{display:none!important}
 <script>
 'use strict';
 /* ===================== Utilidades ===================== */
-const APP_VERSION='2.18.0';
+const APP_VERSION='2.18.1';
 /* lotação padrão das viagens (2.8: 42 lugares) */
 const CAP_DEF=42;
 /* cores do mapa (2.7.1): IDA azul e VOLTA verde-água, sempre em linha contínua; deslocamento ocioso (garagem) tracejado cinza-escuro */
@@ -996,7 +996,7 @@ function openProviders(){const g=PROV.geo,st=provState();const premOpts=`<option
   <div class="row" style="flex-wrap:nowrap"><input id="pvAiKey" type="password" placeholder="sk-ant-…" value="${esc(KEYS.anthropic||'')}" style="flex:1" autocomplete="off"><button class="sm" data-act="pvTest" data-k="ai">Testar e listar modelos</button></div>
   <label class="field" style="margin-top:6px"><span>Modelo (o “Haiku” atende bem e custa menos)</span><select id="pvAiModel">${aiModelOpts()}</select></label><p id="pvAiRes" class="small"></p></div>
  <div class="sec"><h3>📜 Histórico de alterações</h3><p class="small muted">Quem alterou o quê e quando — todas as pessoas, no Planejamento e na Base ativa.</p><div class="row" style="gap:6px"><button class="primary" data-act="histOpen">📜 Abrir o histórico</button><button data-act="recebOpen">📥 Recebidos do campo</button></div></div>
- <div class="sec"><h3>👤 Usuário deste computador</h3><p class="small" style="margin-top:0">${esc(userName()||'—')}${ident()?.mat?' · mat. '+esc(ident().mat):''}${ident()?.email?' · '+esc(ident().email):''}</p><button class="sm" data-act="identSwap">Trocar de usuário</button>${AUTH.g?'<p class="small">🔐 Entrou com o Google · perfil <b>'+esc(AUTH.perfil)+'</b></p>':''}</div>${AUTH.g&&can('admin')?'<div class="sec"><h3>👥 Usuários e permissões</h3><p class="small muted">Quem entra com o Google, o perfil de cada um e a matriz de permissões. Também reconcilia cadastros antigos com o e-mail oficial.</p><div class="row" style="gap:6px"><button class="primary" data-act="usrOpen">👥 Usuários e permissões</button><button data-act="reconOpen">🔗 Reconciliar histórico</button></div></div>':''}`,
+ <div class="sec"><h3>👤 Usuário deste computador</h3><p class="small" style="margin-top:0">${esc(userName()||'—')}${ident()?.mat?' · mat. '+esc(ident().mat):''}${ident()?.email?' · '+esc(ident().email):''}</p><button class="sm" data-act="identSwap">Trocar de usuário</button>${AUTH.g?'<p class="small">🔐 Entrou com o Google · perfil <b>'+esc(AUTH.perfil)+'</b></p>':''}</div>${AUTH.g&&can('admin')?'<div class="sec"><h3>👥 Usuários e permissões</h3><p class="small muted">Quem entra com o Google, o perfil de cada um e a matriz de permissões. Também reconcilia cadastros antigos com o e-mail oficial.</p><div class="row" style="gap:6px"><button class="primary" data-act="usrOpen">👥 Usuários e permissões</button><button data-act="reconOpen">🔗 Reconciliar histórico</button><button data-act="compOpen">🧹 Compactar a base</button></div></div>':''}`,
  [['Cancelar',null],['Salvar',()=>{provRead();toast('Configuração de serviços salva neste navegador.','ok');}]]);
  $('pvPrem').onchange=e=>{$('pvPremKeyRow').style.display=e.target.value&&e.target.value!=='geoapify'?'':'none';};}
 function provRead(){const v=id=>$(id)?.value??'',c=id=>!!$(id)?.checked;const wasOwn=ownUrl();PROV.own.url=cleanUrl(v('pvOwn'));PROV.own.on=c('pvOwnOn');PROV.fossgis.on=c('pvFg');PROV.geoapify.route=c('pvGaR');
@@ -1039,9 +1039,9 @@ function openSnaps(){const rows=[...SNAP_LIST].reverse();dialog('Versões autom�
 function backupAgeDays(){return LAST_BACKUP?(Date.now()-LAST_BACKUP)/86400000:Infinity;}
 /* trabalho do usuário: rotas no Planejamento ou Base ativa alterada (as linhas embutidas sozinhas não contam) */
 function hasWork(){return S.routes.length>0||(typeof CAT!=='undefined'&&CAT_READY&&Object.keys(CAT.routes||{}).length>0&&!catPristine());}
-function renderBackupPill(){const el=$('backupPill');if(!el)return;const age=backupAgeDays(),show=!READONLY&&hasWork()&&age>7;el.hidden=!show;if(show)el.textContent=LAST_BACKUP?'⚠ Backup há '+Math.floor(age)+' dias':'⚠ Sem backup';}
+function renderBackupPill(){const el=$('backupPill');if(!el)return;const age=backupAgeDays(),show=!READONLY&&!liveUrl()&&hasWork()&&age>7;el.hidden=!show;if(show)el.textContent=LAST_BACKUP?'⚠ Backup há '+Math.floor(age)+' dias':'⚠ Sem backup';}
 async function noteBackup(){LAST_BACKUP=Date.now();try{await IDB.set('lastBackup',LAST_BACKUP);}catch{}renderBackupPill();}
-function backupBootNotice(){if(READONLY)return;setTimeout(()=>{if(!hasWork())return;const age=backupAgeDays();if(age<=14)return;toast(LAST_BACKUP&&Number.isFinite(age)?'Último backup há '+Math.floor(age)+' dias. Clique em “⚠ Backup” no alto da tela e guarde o arquivo na pasta do projeto.':'Ainda não há backup deste trabalho. Clique em “⚠ Sem backup” no alto da tela e guarde o arquivo na pasta do projeto — o navegador sozinho não é cópia de segurança.','warn',12000);},3000);}
+function backupBootNotice(){if(READONLY)return;setTimeout(()=>{if(!hasWork()||liveUrl())return;const age=backupAgeDays();if(age<=14)return;toast(LAST_BACKUP&&Number.isFinite(age)?'Último backup há '+Math.floor(age)+' dias. Clique em “⚠ Backup” no alto da tela e guarde o arquivo na pasta do projeto.':'Ainda não há backup deste trabalho. Clique em “⚠ Sem backup” no alto da tela e guarde o arquivo na pasta do projeto — o navegador sozinho não é cópia de segurança.','warn',12000);},3000);}
 
 /* ===================== Base de trajetos executados (rotas vigentes) ===================== */
 let BUILTIN_BASE=[];
@@ -1709,7 +1709,9 @@ function kmeansPartition(items,k,cap,hub,dir){if(items.length<k)return null;cons
  return best&&{...best,method:'kmeans'};}
 const PART_NAME={corr:'Corredores até o destino (setores + agrupamento + trocas entre vizinhos)',sweep:'Setores a partir do destino (varredura)',kmeans:'Agrupamento geográfico com lotação (k-médias)',cw:'Economias de Clarke & Wright'};
 /* melhor divisão em k veículos entre varredura e k-médias (estimativa por distância × 1,3) */
-function bestPartition(items,k,cap,hub,dir){const c=[sweepPartition(items,k,cap,hub,dir),kmeansPartition(items,k,cap,hub,dir)].filter(Boolean).sort((a,b)=>a.score-b.score);return c.length?{...c[0],alt:c.slice(1)}:null;}
+function bestPartition(items,k,cap,hub,dir){const co=corrPartition(items,k,cap,hub,dir),c=[sweepPartition(items,k,cap,hub,dir),kmeansPartition(items,k,cap,hub,dir)].filter(Boolean).sort((a,b)=>a.score-b.score);
+ /* 2.18.1: corredores até o destino é o padrão; só perde se deixar gente acima da lotação e outra divisão não */
+ if(co&&!(co.over>0&&c[0]&&!(c[0].over>0)))return{...co,alt:c};return c.length?{...c[0],alt:[co,...c.slice(1)].filter(Boolean)}:null;}
 /* Clarke & Wright (economias) para fretamento: rotas abertas que terminam no destino (IDA) ou começam nele (VOLTA).
    cost(a,b) = minutos entre os pontos; toHub(i)/fromHub(i) = minutos até/de o destino; idle(i) = custo do ocioso até o 1º ponto (IDA) ou do último até a garagem (VOLTA).
    Junta a rota que termina em i com a que começa em j se couber na lotação e no tempo máximo a bordo. */
@@ -2610,8 +2612,14 @@ function catPendingPoints(v){return(v?.stops||[]).map(x=>CAT.points[x.pid]).filt
 /* ---------- vistorias ---------- */
 const VIST_CHECKS=[['luz','Iluminação adequada'],['calcada','Calçada / área de espera segura'],['parada','Espaço para o ônibus parar sem bloquear a via'],['visao','Boa visibilidade (longe de curva, lombada e esquina)'],['travessia','Passageiro não precisa atravessar via perigosa'],['abrigo','Abrigo / proteção contra sol e chuva'],['acess','Acessível (rampa, piso regular)']];
 const VIST_RES={aprovado:['Aprovado','ok'],ressalva:['Aprovado com ressalva','warn'],reprovado:['Reprovado','bad']};
+/* onde cada foto da vistoria está no Drive: {id} (gravada pelo script) ou {l,n:[nomes possíveis]} em vistorias-seguranca/<l>/fotos */
+const inspRefsFor=(v,n)=>{const l=v.sst?.rota?.code||v.sst?.rota?.name||'',d=String(v.at||'').slice(0,10),c=CAT.points[v.pid]?.code||v.pid;return Array.from({length:n},(_,k)=>({l,n:[c+'_'+d+'_'+(k+1)+'.jpg',sstSlug(String(v.pid||v.key||'ponto'))+'_'+d+'_'+String(v.id||'').slice(-6)+'_'+(k+1)+'.jpg']}));};
+const inspRef=v=>{const n=(v.photos||[]).length;return Array.isArray(v.phRef)&&v.phRef.length===n?v.phRef:inspRefsFor(v,n);};
 function catInspAdd(o){const v={id:uid('vi'),pid:'',at:nowIso(),by:who(),result:'aprovado',checks:{},notes:'',pos:null,photos:[],src:'computador',...o};
- if(v.sst){const pv=catInspOf(v.pid).find(x=>x.sst&&x.id!==v.id),base=pv?(pv.ver?.length?pv.ver:[{v:1,by:pv.by||'',mat:pv.mat||'',at:pv.at}]):[];v.ver=[...base,{v:base.length+1,by:v.by||'',mat:v.mat||'',at:v.at}];if(pv){v.subst=pv.id;/* app 2.12: edição que só acrescenta fotos — as da versão anterior continuam */if(v.keepPh)v.photos=[...(pv.photos||[]),...(v.photos||[])].slice(0,20);}}delete v.keepPh;
+ if(v.sst){const pv=catInspOf(v.pid).find(x=>x.sst&&x.id!==v.id),base=pv?(pv.ver?.length?pv.ver:[{v:1,by:pv.by||'',mat:pv.mat||'',at:pv.at}]):[];v.ver=[...base,{v:base.length+1,by:v.by||'',mat:v.mat||'',at:v.at}];if(pv){v.subst=pv.id;const nw=(v.photos||[]).length,nr=Array.isArray(v.phRef)&&v.phRef.length===nw?v.phRef:inspRefsFor(v,nw),pr=inspRef(pv);
+  /* app 2.13.1: lista do que fica da versão anterior (o resto foi removido ou trocado pela foto editada) */
+  if(Array.isArray(v.keepIdx)){const ks=[...new Set(v.keepIdx)].filter(k=>Number.isInteger(k)&&k>=0&&k<(pv.photos||[]).length);v.photos=[...ks.map(k=>pv.photos[k]),...(v.photos||[])].slice(0,20);v.phRef=[...ks.map(k=>pr[k]),...nr].slice(0,20);}
+  /* app 2.12: edição que só acrescenta fotos — as da versão anterior continuam */else if(v.keepPh){v.photos=[...(pv.photos||[]),...(v.photos||[])].slice(0,20);v.phRef=[...pr,...nr].slice(0,20);}}}delete v.keepPh;delete v.keepIdx;if(!v.phRef)delete v.phRef;
  CAT.insp[v.id]=v;const p=CAT.points[v.pid];
  if(p){p.insp=[...(p.insp||[]),v.id];if(v.sst?.cls!=='nao_avaliado'){const st=v.result==='reprovado'?'reprovado':'validado';catPointSet(p,{status:st},'vistoria: '+(v.sst?SST_CLS[v.sst.cls]?.[0]:VIST_RES[v.result]?.[0]));}}catLog('vistoria','ponto',v.pid,VIST_RES[v.result]?.[0]+(v.ver?.length>1?' · v'+v.ver.length+' substitui a v'+(v.ver.length-1):'')+(v.notes?' – '+v.notes:''));return v;}
 const catInspOf=pid=>(CAT.points[pid]?.insp||[]).map(id=>CAT.insp[id]).filter(Boolean).sort((a,b)=>String(b.at).localeCompare(a.at));
@@ -4498,7 +4506,7 @@ function openVistoria(t){const r=cur();const s=t.sid&&r?r.stops.find(x=>x.id===t
  <b class="small">Medidas de controle e recomendações</b><div class="vasp">${SST_MED.map(([m,tp],i)=>`<label class="check"><input type="checkbox" name="vMed" value="${i}" ${medOn.has(m)?'checked':''}> <span>${esc(m)} <span class="muted small">(${tp})</span></span></label>`).join('')}</div>
  <div class="grid2"><input id="vMx" placeholder="Outra medida (opcional)" value="${esc(xM?.t||'')}"><select id="vMt">${SST_TIPOS.map(x=>`<option ${xM?.tipo===x?'selected':''}>${x}</option>`).join('')}</select></div>
  <label class="field" style="margin-top:8px"><span>Parecer técnico — justificativa *</span><textarea id="vJust" rows="2">${esc(o.just||'')}</textarea></label><label class="field"><span>Restrições e recomendações (uma por linha)</span><textarea id="vRest" rows="2">${esc((o.rest||[]).join('\n'))}</textarea></label>
- <label class="field"><span>Fotos (até 10) — cada foto abre para enquadrar</span><input id="vPh" type="file" accept="image/*" multiple></label><div id="vPhs" class="row" style="gap:6px;flex-wrap:wrap;margin-bottom:6px"></div><div class="grid2"><label class="field"><span>Avaliador *</span><input id="vBy" value="${esc(userName())}" autocomplete="name"></label><label class="field"><span>Matrícula *</span><input id="vMat" value="${esc(lsGet('rota-studio-mat',''))}" inputmode="numeric"></label></div>`,
+ <label class="field"><span>Fotos (até 10) — cada foto abre para enquadrar</span><input id="vPh" type="file" accept="image/*" multiple></label><div id="vPhs" class="row" style="gap:6px;flex-wrap:wrap;margin-bottom:6px"></div>${(()=>{const I=ident(),mt=I?.mat||'',nm=I?.nome||userName();return mt?`<p class="small" id="vWho">Avaliador: <b>${esc(nm)}</b> · Matrícula <b>${esc(mt)}</b> <span class="muted">(do cadastro — ⚙ Serviços → 👥 Usuários)</span></p><input type="hidden" id="vBy" value="${esc(nm)}"><input type="hidden" id="vMat" value="${esc(mt)}">`:`<div class="grid2"><label class="field"><span>Avaliador *</span><input id="vBy" value="${esc(userName())}" autocomplete="name"></label><label class="field"><span>Matrícula *</span><input id="vMat" value="${esc(lsGet('rota-studio-mat',''))}" inputmode="numeric"></label></div><p class="small muted">Sua matrícula não está no cadastro: peça ao administrador para preencher em ⚙ Serviços → 👥 Usuários e permissões.</p>`;})()}`,
  [['Cancelar',null],['Salvar vistoria',()=>{const g=id=>String($(id)?.value||'').trim(),cls=document.querySelector('input[name="vCls"]:checked')?.value||'',na=cls==='nao_avaliado',pr=+g('vP')||0,sv=+g('vS')||0,by=g('vBy'),mat=g('vMat');
   const bad=(m,id)=>{toast(m,'warn',7000);$(id)?.focus();return false;};
   if(!cls)return bad('Escolha a classificação do ponto.','vObs');if(!na&&g('vObs').length<5)return bad('Descreva a condição observada.','vObs');if(!na&&(!pr||!sv))return bad('Marque a probabilidade e a severidade.','vP');if(!na&&g('vJust').length<5)return bad('Escreva a justificativa do parecer técnico.','vJust');if(!by||!mat)return bad('Preencha o avaliador e a matrícula: vão no relatório.',by?'vMat':'vBy');lsSet('rota-studio-mat',mat);
@@ -4540,7 +4548,7 @@ function fieldPackBuild(works,cats,avulsos,by){const routes=[],inR=new Set();
  const count=routes.reduce((a,r)=>a+r.stops.filter(s=>s.st==='proposto').length,0)+points.length;
  return{kind:'rota-studio-campo',v:1,made:nowIso(),link:liveUrl()||'',by:by||who(),title:S.title||'Estúdio de Rotas',checks:VIST_CHECKS,results:VIST_RES,acomp:(({key,...c})=>c)(acompCfg()),garage:(G=>G?{name:G.name||'Garagem',lat:+G.lat,lon:+G.lon}:null)(garageNode()),routes,points,vis:fieldPackVis([...inR,...points.map(x=>x.pid)]),pub:(c=>({company:c.company||'',color:c.color||'',logo:String(c.logo||'').length<80e3?c.logo||'':''}))(pubCfg()),count};}
 /* 2.12.12: última vistoria de segurança de cada ponto, para o app mostrar o que já foi feito e montar o relatório da linha */
-function fieldPackVis(pids){const o={};for(const pid of new Set(pids)){const v=pid&&sstOf(pid);if(v)o[pid]={id:v.id,at:v.at,by:v.by||'',mat:v.mat||'',sst:v.sst,ver:v.ver||null,np:(v.photos||[]).length,ph0:(v.photos||[])[0]||'',pf:[sstSlug(v.sst.rota?.code||v.sst.rota?.name||''),(CAT.points[pid]?.code||pid)+'_'+String(v.at).slice(0,10)+'_1.jpg']};}return o;}
+function fieldPackVis(pids){const o={};for(const pid of new Set(pids)){const v=pid&&sstOf(pid);if(v)o[pid]={id:v.id,at:v.at,by:v.by||'',mat:v.mat||'',sst:v.sst,ver:v.ver||null,np:(v.photos||[]).length,fr:inspRef(v),ph0:(v.photos||[])[0]||'',pf:[sstSlug(v.sst.rota?.code||v.sst.rota?.name||''),(CAT.points[pid]?.code||pid)+'_'+String(v.at).slice(0,10)+'_1.jpg']};}return o;}
 /* shortcut: 1 miniatura (≤360 px, ~20 KB) por ponto vistoriado no pacote; com centenas de pontos o pacote cresce — aí baixar a foto sob demanda */
 /* foto: a cópia da pasta (vistorias-seguranca/<linha>/fotos) vale para todos os computadores; senão a do armazenamento deste navegador */
 const thumbUrl=d=>new Promise(res=>{const im=new Image();im.onload=()=>{const k=Math.min(1,360/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',.62));};im.onerror=()=>res('');im.src=d;});
@@ -4558,7 +4566,7 @@ function fieldImportResults(data,file){const rows=fieldRows(data),items=rows.map
 async function fieldApply(data,rows,mv){let n=0,moved=0;const cr=cur();if(cr&&mv.size)pushUndo('Posição corrigida em campo',cr);
   for(let i=0;i<rows.length;i++){const{it,t,dup}=rows[i];if(dup)continue;let p=t.p;if(!p&&t.s){p=catPointForStop(t.s,t.r.cat?.rid,t.r.cat?.rid?CAT.routes[t.r.cat.rid]?.client:'');t.s.pid=p.id;}if(!p&&validLL(it))p=catPointNew({name:it.name||'Ponto de campo',lat:it.lat,lon:it.lon,status:'proposto',src:'campo'});if(!p)continue;
    const photos=[];for(const d of it.photos||[]){if(typeof d!=='string'||!d.startsWith('data:image'))continue;const id=uid('ph');try{await REPO.putPhoto(id,d);photos.push(id);}catch{}}
-   const v=catInspAdd({id:it.id||uid('vi'),pid:p.id,at:it.at||nowIso(),by:it.by||data.by||'campo',result:it.result,checks:it.checks||{},notes:it.notes||'',pos:validLL(it.pos)?{lat:+it.pos.lat,lon:+it.pos.lon}:null,photos,src:'campo',mat:it.mat||'',sst:it.sst||null,keepPh:it.keepPh||0});if(it.sst&&!it.fotosDrive?.length)sstFotos(it.sst.rota?.code||it.sst.rota?.name||'',p,it.at,(it.photos||[]).filter(d=>typeof d==='string'&&d.startsWith('data:image')));n++;
+   const v=catInspAdd({id:it.id||uid('vi'),pid:p.id,at:it.at||nowIso(),by:it.by||data.by||'campo',result:it.result,checks:it.checks||{},notes:it.notes||'',pos:validLL(it.pos)?{lat:+it.pos.lat,lon:+it.pos.lon}:null,photos,src:'campo',mat:it.mat||'',sst:it.sst||null,keepPh:it.keepPh||0,keepIdx:Array.isArray(it.keepIdx)?it.keepIdx:undefined,phRef:it.fotosDrive?.length&&it.fotosDrive.length===photos.length?it.fotosDrive.map(id=>({id})):null});if(it.sst&&!it.fotosDrive?.length)sstFotos(it.sst.rota?.code||it.sst.rota?.name||'',p,it.at,(it.photos||[]).filter(d=>typeof d==='string'&&d.startsWith('data:image')));n++;
    if(mv.has(i)&&v.pos){catPointSet(p,{lat:+v.pos.lat.toFixed(6),lon:+v.pos.lon.toFixed(6)},'posição corrigida em campo');for(const r of S.routes)for(const s of r.stops)if(s.pid===p.id){s.lat=p.lat;s.lon=p.lon;}moved++;}vistMarkStops(p.id,v);}
   catChanged({base:true});changed({recalc:moved>0});return{n,moved};}
 
@@ -5636,10 +5644,11 @@ function renderAll(){if(PTR_DOWN){PEND.add(renderAll);return;}renderTop();render
 function renderMap(){if(!MAP)return;renderFences();renderRoute();renderBase();}
 function changed(o={}){if(UNDO_NEW.length&&lockGate())o={...o,recalc:false};if(!READONLY)scheduleSave();if(o.base){buildBase();renderBase(true);}renderAll();if(o.fit)fitRoute();if(o.recalc)requestRecalc(o.force);}
 const requestRecalc=debounce(force=>{const r=cur();if(!r)return;if(!r.calc&&!force)return;if(S.cfg.autoRecalc===false&&!force){renderStatus();return;}runRecalc(r,force);},280);
-async function runRecalc(r,force){if(RECALC.has(r.id)){RECALC_AGAIN.add(r.id);return;}RECALC.add(r.id);try{let guard=0;do{RECALC_AGAIN.delete(r.id);if(!force&&r.calc&&!isStale(r))break;force=false;await computeRoute(r);if(r===cur())renderAll();}while((RECALC_AGAIN.has(r.id)||isStale(r))&&guard++<4);}catch(e){toast('Falha ao traçar: '+e.message,'bad',8000);}finally{RECALC.delete(r.id);if(!READONLY)scheduleSave();renderAll();if(PATH_EDIT.has(r.id))pathLater(r);}}
+async function runRecalc(r,force){const lkBy=LIVE.on?lockBy(r.id):'';if(lkBy){if(force)toast('🔒 Não recalculei: a rota '+(r.name||'')+' está em edição por '+lkBy+'. Só quem está editando pode recalcular — as outras rotas estão livres.','warn',8000);return;}if(RECALC.has(r.id)){RECALC_AGAIN.add(r.id);return;}RECALC.add(r.id);try{let guard=0;do{RECALC_AGAIN.delete(r.id);if(!force&&r.calc&&!isStale(r))break;force=false;await computeRoute(r);if(r===cur())renderAll();}while((RECALC_AGAIN.has(r.id)||isStale(r))&&guard++<4);}catch(e){toast('Falha ao traçar: '+e.message,'bad',8000);}finally{RECALC.delete(r.id);const nr=S.routes.find(x=>x.id===r.id);if(nr&&nr!==r&&r.calc&&routeSig(nr)===r.calc.sig)nr.calc=r.calc;if(!READONLY)scheduleSave();renderAll();if(PATH_EDIT.has(r.id))pathLater(r);}}
 function renderStatus(){const r=cur(),el=$('statusPill');if(!el)return;let t='Sem rota',c='';if(r){const tt=totals(r);if(CALCULATING.has(r.id)){t='Calculando…';c='calc';}else if(!r.calc){t='Rascunho';}else if(isStale(r)){t='Desatualizada';c='stale';}else if(tt.warn||tt.fence){t='Traçada com alertas';c='stale';}else{t='Traçada';c='ok';}}el.textContent=READONLY?'Somente leitura':t;el.className='pill '+c;const b=$('btnStale');if(b)b.hidden=READONLY||c!=='stale'||!r||!r.calc||!isStale(r)||CALCULATING.has(r.id);}
 function renderTop(){const vb=document.querySelector('.brand .ver');if(vb)vb.textContent=APP_VERSION+' · Paracatu';const pt=$('projTitle');if(pt&&document.activeElement!==pt)pt.value=S.title||'';renderStatus();}
-function renderRouteBar(){const sel=$('routeSel');const opt=(r,i)=>`<option value="${i}" ${i===S.cur?'selected':''}>${esc(r.plan?.aid&&S.atends?.[r.plan.aid]?(S.atends[r.plan.aid].nveh>1?'Veículo '+r.plan.veh+' · ':'')+r.dir:(r.group&&!r.name.includes(r.group)?r.group+' · ':'')+r.name+lockTag(r.id))}</option>`;
+const routeOptTxt=r=>(r.plan?.aid&&S.atends?.[r.plan.aid]?(S.atends[r.plan.aid].nveh>1?'Veículo '+r.plan.veh+' · ':'')+r.dir:(r.group&&!r.name.includes(r.group)?r.group+' · ':'')+r.name)+lockTag(r.id);
+function renderRouteBar(){const sel=$('routeSel');const opt=(r,i)=>`<option value="${i}" ${i===S.cur?'selected':''}>${esc(routeOptTxt(r))}</option>`;
  let h='',seen=new Set();S.routes.forEach((r,i)=>{const A=r.plan?.aid&&S.atends?.[r.plan.aid];if(!A){h+=opt(r,i);return;}if(seen.has(A.id))return;seen.add(A.id);h+=`<optgroup label="🚌 ${esc(A.name)} · ${A.nveh} veículo(s)">${S.routes.map((x,j)=>[x,j]).filter(([x])=>x.plan?.aid===A.id).map(([x,j])=>opt(x,j)).join('')}</optgroup>`;});
  sel.innerHTML=S.routes.length?h:'<option>Nenhuma rota — importe ou abra uma rota vigente</option>';sel.disabled=!S.routes.length;sel.title=sel.selectedOptions[0]?.textContent||'';const r=cur(),m=$('routeMeta');if(!r){m.innerHTML='';return;}const t=totals(r);
  m.innerHTML=extEdBar(r)+`<span class="chip ${r.dir==='IDA'?'ida':'volta'}">${r.dir==='IDA'?'IDA · coleta':'VOLTA · entrega'}</span><span class="chip">${t.stops} parada(s)</span><span class="chip">${t.pax} passageiro(s)</span>${t.pending?`<span class="chip warn">${t.pending} pendente(s)</span>`:''}${r.start?`<span class="chip" title="Origem fixa: ${esc(r.start.name)}">🚩 ${esc(r.start.name)}</span>`:''}${r.end?`<span class="chip" title="Destino fixo: ${esc(r.end.name)}">🏁 ${esc(r.end.name)}</span>`:''}${!r.plan?.aid&&r.stops.length>1&&!r.cat?'<button class="sm edit-only" data-act="atNew" title="Diga se é IDA, VOLTA ou IDA e VOLTA, o nome, a lotação e quantos veículos — o sistema divide os passageiros">🚌 Configurar atendimento</button>':''}`+atendStrip(r)+flowHtml(r,t);}
@@ -5830,7 +5839,7 @@ function atendWizard(r,o={}){return new Promise(res=>{const A0=o.aid?S.atends[o.
  <div class="grid2" style="margin-top:8px"><label class="field"><span id="atPlaceL">Destino</span><select id="atPlace">${S.places.map(p=>`<option value="${p.id}" ${place&&(place.placeId===p.id||distM(place,p)<5)?'selected':''}>${esc(p.name)}</option>`).join('')}${place&&!S.places.some(p=>place.placeId===p.id||distM(place,p)<5)?`<option value="__cur" selected>${esc(place.name||'Atual')}</option>`:''}</select></label>
  <div class="grid2" style="gap:6px"><label class="field" id="atTiF"><span>Chegada no destino</span><input id="atTi" type="time" value="${esc(A0?.timeIda||(r.dir==='IDA'&&r.sched?.time)||'07:00')}"></label><label class="field" id="atTvF"><span>Saída do destino</span><input id="atTv" type="time" value="${esc(A0?.timeVolta||(r.dir==='VOLTA'&&r.sched?.time)||'17:30')}"></label></div></div>
  <div class="grid2" style="margin-top:4px"><div class="grid2" style="gap:6px"><label class="field"><span>Veículo</span><select id="atVt">${Object.keys(NL_VT).map(t=>`<option ${t===vt0?'selected':''}>${t}</option>`).join('')}</select></label><label class="field"><span>Passageiros por veículo</span><input id="atCap" type="number" min="1" max="120" value="${cap0}"></label></div>
- <div class="grid2" style="gap:6px"><label class="field"><span>Quantidade de veículos</span><input id="atN" type="number" min="1" max="12" value="${A0?.nveh||Math.max(1,Math.ceil(pax/cap0))}"></label><label class="field"><span>Divisão</span><select id="atMeth"><option value="auto">Automática (a melhor)</option><option value="sweep" ${A0?.method==='sweep'?'selected':''}>Setores a partir do destino</option><option value="kmeans" ${A0?.method==='kmeans'?'selected':''}>Agrupamento geográfico</option></select></label></div></div>
+ <div class="grid2" style="gap:6px"><label class="field"><span>Quantidade de veículos</span><input id="atN" type="number" min="1" max="12" value="${A0?.nveh||Math.max(1,Math.ceil(pax/cap0))}"></label><label class="field"><span>Divisão</span><select id="atMeth"><option value="auto">Corredores até o destino (padrão)</option><option value="sweep" ${A0?.method==='sweep'?'selected':''}>Setores a partir do destino</option><option value="kmeans" ${A0?.method==='kmeans'?'selected':''}>Agrupamento geográfico</option></select></label></div></div>
  <div id="atMsg" class="note info" style="margin-top:8px"></div><div id="atPrev" class="atprev"></div>`;
  dialog((A0?'Reconfigurar':'Configurar')+' o atendimento',h,[[A0?'Cancelar':'Pular (manter como está)',null],['Criar atendimento',()=>atendCreate()]]);$('dlg').classList.add('wide');
  /* o “close” de uma janela anterior pode chegar depois desta abrir: só vale quando a janela estiver fechada de fato */
@@ -5840,7 +5849,7 @@ function atendWizard(r,o={}){return new Promise(res=>{const A0=o.aid?S.atends[o.
  atUpd();});}
 function atRead(){const kind=document.querySelector('#atKind button.on')?.dataset.k||'IDA';return{name:cleanText($('atName').value),date:$('atDate').value,kind,place:$('atPlace').value,ti:$('atTi').value,tv:$('atTv').value,vt:$('atVt').value,cap:Math.round(num($('atCap').value)),n:Math.round(num($('atN').value)),meth:$('atMeth').value};}
 function atPartition(c){const X=AT,hub=atPlaceObj(c.place)||fleetHub(X.r),dir=c.kind==='VOLTA'?'VOLTA':'IDA';if(c.n<=1)return{groups:[X.geo],method:'one',loads:[atPax(X.geo)]};if(X.geo.length<c.n)return null;
- const P=c.meth==='sweep'?sweepPartition(X.geo,c.n,c.cap,hub,dir):c.meth==='kmeans'?kmeansPartition(X.geo,c.n,c.cap,hub,dir):bestPartition(X.geo,c.n,c.cap,hub,dir);return P;}
+ const P=c.meth==='corr'?corrPartition(X.geo,c.n,c.cap,hub,dir):c.meth==='sweep'?sweepPartition(X.geo,c.n,c.cap,hub,dir):c.meth==='kmeans'?kmeansPartition(X.geo,c.n,c.cap,hub,dir):bestPartition(X.geo,c.n,c.cap,hub,dir);return P;}
 function atPlaceObj(id){if(id==='__cur'){const r=AT?.r;return r?((r.dir==='VOLTA'?r.start:r.end)||null):null;}const p=S.places.find(x=>x.id===id);return p?{name:p.name,lat:p.lat,lon:p.lon,placeId:p.id}:null;}
 function atUpd(e){const X=AT;if(!X||!$('atName'))return;const c=atRead();if(e?.target?.id==='atVt'){const v=NL_VT[c.vt];if(v){$('atCap').value=v[2];c.cap=v[2];}}
  const ida=c.kind!=='VOLTA',vol=c.kind!=='IDA';$('atPlaceL').textContent=c.kind==='IDA'?'Destino da IDA':c.kind==='VOLTA'?'Origem da VOLTA':'Destino da IDA / origem da VOLTA';$('atTiF').hidden=!ida;$('atTvF').hidden=!vol;
@@ -5998,6 +6007,9 @@ const HELP=[
 <ul><li><b>Cadeado por rota</b> (2.18): quem <b>abre</b> uma rota livre no Planejamento fica com ela enquanto ela estiver aberta e a aba visível — o cadeado se renova sozinho, mesmo só olhando o mapa. Para os outros aparece a tarja vermelha <b>🔒 BLOQUEADO — Em edição por Nome (Modo somente leitura)</b>: dá para ver tudo, mas clicar, arrastar ponto ou digitar naquela rota é barrado com aviso. As <b>outras rotas continuam livres</b>.</li>
 <li>O cadeado se solta quando a pessoa troca de rota ou de tela, esconde a aba, fica 15 minutos sem clicar/digitar, ou fecha a aba (no máximo 1 minuto e meio depois).</li>
 <li>O servidor também confere: se alguém tentar gravar uma rota com cadeado de outra pessoa (por exemplo, uma aba antiga), a gravação dessa rota é recusada, ela volta a ser a do servidor, e o resto é gravado.</li>
+<li><b>Quem está usando</b> (2.18.1): clique no selo <b>🟢 Ao vivo · N pessoas</b> para ver cada pessoa conectada — nome, perfil, tela e rota aberta, e 🔒 em quem está editando. A lista e o seletor de rotas (inclusive “Veículo 1 · IDA” dos atendimentos com vários veículos) se atualizam sozinhos, sem F5.</li>
+<li>Clicar em <b>↻ Recalcular</b> numa rota com cadeado de outra pessoa avisa quem está editando (só ela recalcula). Rota apagada por outra pessoa some para todos e não volta; atendimento que ficou sem rota sai sozinho.</li>
+<li>Com a base viva não há lembrete de backup: o servidor guarda uma cópia por dia. O backup manual fica em 💾 Dados, só para o administrador. A pasta local do Drive virou opcional (💾 Dados → Avançado).</li>
 <li>Se duas pessoas mexem na mesma rota no mesmo segundo, o script dá a rota a uma só e a outra recebe o aviso; o que já tinha ido é juntado como sempre (a versão deste computador vale para o mesmo campo, com aviso).</li>
 <li>Com mais alguém conectado, as alterações chegam a cada ~5 s (sozinho, a cada 15 s).</li></ul>`},
 {id:'g-login',m:'geral',t:'Entrar com o Google, perfis e usuários',k:'login google entrar conta perfil permissao admin analista seguranca campo usuarios cadastro liberar pedido reconciliar historico legado github pages',at:['dlg:usuarios e permissoes','dlg:reconciliar historico'],b:`
@@ -6006,7 +6018,9 @@ const HELP=[
 <li>E-mail que não está no cadastro não entra: vira <b>pedido de acesso</b> para o ADMIN liberar em ⚙ Serviços → 👥 Usuários e permissões, onde também fica a matriz de permissões de cada perfil.</li>
 <li>Quem não tem o Planejamento recebe a base <b>sem nomes nem endereços de passageiros</b> e só grava o que o perfil permite (o resto fica como está).</li>
 <li><b>🔗 Reconciliar histórico</b>: junta os cadastros antigos (nome, e-mail e matrícula digitados) com o e-mail Google oficial — nas vistorias, acompanhamentos, registro da Base e histórico do servidor. Antes de aplicar, guarda uma versão automática e faz backup do histórico; o nome antigo fica guardado como “legado”.</li>
-<li>Enquanto a transição não termina, quem não entra com o Google continua pela chave, como antes. Depois o administrador liga o modo “só com Google”.</li></ul>`},
+<li>Enquanto a transição não termina, quem não entra com o Google continua pela chave, como antes. Depois o administrador liga o modo “só com Google”.</li>
+<li><b>Nome e matrícula</b> (2.18.1): se o cadastro estiver sem nome (ou com o e-mail no lugar), vale o nome da conta Google, e o cadastro é corrigido. A matrícula é a do cadastro (⚙ Serviços → 👥, o administrador edita) e aparece sozinha, sem campo para digitar, nas vistorias de segurança.</li>
+<li><b>🧹 Compactar a base</b> (administrador): mostra uma prévia e, ao confirmar, o servidor guarda uma cópia selada da base em base/backups/, leva as unificações antigas para base/arquivo-merges.json (ficam as 30 últimas, que ainda podem ser desfeitas), simplifica a trilha GPS dos acompanhamentos encerrados (métricas não mudam), tira atendimentos sem rota e preenche o endereço do portal que faltava. Rodar de novo não muda nada.</li></ul>`},
 {id:'g-pasta',m:'geral',t:'Pasta compartilhada no Google Drive (editar de outro computador)',k:'google drive pasta compartilhada outro computador sincronizar nuvem equipe drive para computador conectar reconectar conflito qual versao vale versoes',at:['dlg:dados pasta compartilhada','h:pasta compartilhada','dlg:pasta compartilhada qual versao vale'],b:`
 <p>Sem servidor, os dados podem ficar na pasta do projeto no Google Drive. O Chrome ou o Edge grava ali o arquivo <b>Rota Studio - dados.json</b> a cada alteração, e o <b>Google Drive para computador</b> leva para a nuvem e para os outros computadores.</p>
 <ol><li>Instale o Google Drive para computador e deixe a pasta do projeto sincronizando (ex.: <b>I:\\Meu Drive\\Projeto Rotas</b>). Colegas: compartilhe a pasta com eles e peça para “Adicionar atalho ao Meu Drive”.</li>
@@ -6211,7 +6225,7 @@ const HELP=[
 <ul><li><b>Nome do atendimento</b> (obrigatório — não usa mais o nome do arquivo) e <b>data</b> (opcional, para atendimentos extras).</li>
 <li><b>Tipo</b>: IDA (coleta → destino), VOLTA (destino → entrega) ou <b>IDA e VOLTA</b>; o destino/origem e os horários de chegada e saída.</li>
 <li><b>Veículo</b> e <b>passageiros por veículo</b> (ônibus 42, micro 28, van 15…) e a <b>quantidade de veículos</b>. Se os passageiros não couberem, o sistema avisa e sugere o mínimo.</li>
-<li>Com mais de um veículo, os endereços são divididos (<i>setores a partir do destino</i> ou <i>agrupamento geográfico com lotação</i> — “Automática” escolhe o melhor) e a prévia mostra quantos passageiros vão em cada um.</li></ul>
+<li>Com mais de um veículo, os endereços são divididos por <b>corredores até o destino</b> (padrão desde a 2.18.1: cada veículo fica numa região e não entra no território do outro); também dá para escolher <i>setores a partir do destino</i> ou <i>agrupamento geográfico com lotação</i> e a prévia mostra quantos passageiros vão em cada um.</li></ul>
 <p>Cada veículo vira uma rota com cor própria e <b>as suas etapas</b> (Paradas → Traçar → Conferir → Salvar). Na IDA e VOLTA, a VOLTA leva os mesmos passageiros da IDA de cada veículo.</p>
 <ul><li>A <b>faixa do atendimento</b> (acima das etapas) mostra os cartões dos veículos com IDA/VOLTA, passageiros ÷ lugares e o progresso das etapas — clique para abrir. No mapa, os pontos dos outros veículos aparecem na cor deles.</li>
 <li><b>Visão geral</b>: tabela por veículo com passageiros, KM, tempo, horário e etapas, e o total do atendimento.</li>
@@ -6804,7 +6818,7 @@ function lockClaim(rid){if(!LIVE.on||!rid)return;LOCK_ACT=LOCK.at=Date.now();if(
 function lockGate(){const N=UNDO_NEW;UNDO_NEW=[];const by=N.flatMap(u=>[u.rid,...(u.more||[]).map(m=>m.rid)]).map(lockBy).find(Boolean);
  if(!by){lockClaim(N.at(-1)?.rid);return false;}
  for(let i=N.length;i--;)if(UNDO.at(-1)===N[i])undoApply(UNDO.pop());updUndo();toast('🔒 Esta rota está em edição por '+by+' — a alteração foi desfeita. As outras rotas estão livres.','warn');return true;}
-function renderLock(){lockPill();if(typeof renderRouteBar==='function'&&$('routeSel')&&document.activeElement!==$('routeSel'))renderRouteBar();renderSyncPill();}
+function renderLock(){lockPill();const sel=$('routeSel');if(sel&&typeof renderRouteBar==='function'){if(document.activeElement!==sel)renderRouteBar();else[...sel.options].forEach(o=>{const r=S.routes[+o.value];if(r)o.textContent=routeOptTxt(r);});}renderSyncPill();presRender();}
 function lockPill(){const top=document.querySelector('.rb-top');if(!top)return;let el=$('lockPill');if(!el){el=document.createElement('div');el.id='lockPill';el.setAttribute('role','alert');el.style.cssText='position:sticky;top:0;z-index:40;background:#b91c1c;color:#fff;font-weight:700;padding:9px 12px;border-radius:8px;margin:6px 0;box-shadow:0 2px 6px rgba(0,0,0,.25)';top.after(el);}
  const b=lockedCur();el.hidden=!b;el.textContent=b?'🔒 BLOQUEADO — Em edição por '+b+' (Modo somente leitura)':'';el.title=b?b+' está editando esta rota. Você vê tudo, mas não altera nada aqui. As outras rotas estão livres.':'';document.body.classList.toggle('rlock',!!b);}
 const lockedCur=()=>MOD==='plan'&&cur()?lockBy(cur().id):'';
@@ -6839,7 +6853,7 @@ const logKey=e=>[e.at,e.by,e.act,e.kind,e.id,e.note].join('|');
 function m3(b,m,t,p,cf){if(deq(m,t))return m;if(deq(m,b))return t;if(deq(t,b))return m;
  if(p==='c.log'){const bs=new Set((b||[]).map(logKey)),ts=new Set((t||[]).map(logKey)),o=[...(t||[]),...(m||[]).filter(e=>!bs.has(logKey(e))&&!ts.has(logKey(e)))];o.sort((x,y)=>String(x.at).localeCompare(String(y.at)));return o.slice(-3000);}
  if(p==='c.meta.ptSeq'||p==='c.meta.rev')return Math.max(+m||0,+t||0);
- if(p==='c.meta.merges'||p==='c.meta.notDup'){const ks=new Set((t||[]).map(x=>JSON.stringify(x)));return[...(t||[]),...(m||[]).filter(x=>!ks.has(JSON.stringify(x)))];}
+ if(p==='c.meta.merges'||p==='c.meta.notDup'){const K=x=>JSON.stringify(x),bs=new Set((b||[]).map(K)),ts=new Set((t||[]).map(K));return[...(t||[]),...(m||[]).filter(x=>!bs.has(K(x))&&!ts.has(K(x)))];}   /* tirado no servidor (compactação) não volta */
  if(isMap(m)&&isMap(t)){const bb=isMap(b)?b:{},o={};
   for(const k of new Set([...Object.keys(t),...Object.keys(m)])){const hm=m[k]!==undefined,ht=t[k]!==undefined,hb=bb[k]!==undefined;
    if(hm&&ht)o[k]=m3(bb[k],m[k],t[k],p+'.'+k,cf);
@@ -6852,6 +6866,7 @@ function m3(b,m,t,p,cf){if(deq(m,t))return m;if(deq(m,b))return t;if(deq(t,b))re
   return o;}
  cf.push(p);return m;}
 function liveMerge(b,m,t,cf){const r={s:m3(b?.s,m.s,t.s,'s',cf),b:m3(b?.b,m.b,t.b,'b',cf),c:m.c||t.c?m3(b?.c,m.c,t.c,'c',cf):null};
+ if(r.s?.del&&Array.isArray(r.s.routes)){const D=r.s.del;r.s.routes=r.s.routes.filter(x=>!D[x?.id]);if(r.s.atends){const u=new Set(r.s.routes.map(x=>x.plan?.aid).filter(Boolean));for(const k of Object.keys(r.s.atends))if(!u.has(k)&&!(m.s?.atends?.[k]&&!b?.s?.atends?.[k]))delete r.s.atends[k];}}
  /* dois pontos novos com o mesmo código (criados ao mesmo tempo): o deste computador ganha um código novo */
  if(r.c?.points&&t.c?.points){const seen=new Map();for(const p of Object.values(r.c.points)){if(!p?.code)continue;const o=seen.get(p.code);if(o&&o!==p.id){const mine=t.c.points[p.id]?o:p.id;r.c.points[mine]={...r.c.points[mine],code:''};}else seen.set(p.code,p.id);}}
  return r;}
@@ -6862,10 +6877,16 @@ function liveApply(d){const curId=cur()?.id,ui=S.ui,c0=S.cur;SYNC.applying=true;
   IDB.set('baseSets',BASESETS).catch(()=>{});REPO.save(CAT).catch(()=>{});IDB.set('state',JSON.parse(JSON.stringify(S))).catch(()=>{});
   buildBase();renderBase(true);if(MAP)renderFences();renderAll();renderNet();renderBoard();}
  finally{SYNC.applying=false;}}
+/* rota que sumiu deste computador desde a última base vira lápide (S.del[id]=quando): no servidor e nas outras abas ela não volta.
+   Rota que voltou (desfazer) perde a lápide. Lápide > 30 dias sai. Atendimento sem nenhuma rota há 10 min sai. */
+function liveTomb(){const B=LIVE.base?.s;if(!B)return;const now=Date.now(),ids=new Set(S.routes.map(r=>r.id));const D=S.del&&typeof S.del==='object'?S.del:(S.del={});
+ for(const r of B.routes||[])if(r?.id&&!ids.has(r.id)&&!D[r.id])D[r.id]=now;
+ for(const k of Object.keys(D))if(ids.has(k)||now-D[k]>30*864e5)delete D[k];
+ const used=new Set(S.routes.map(r=>r.plan?.aid).filter(Boolean));for(const[k,a]of Object.entries(S.atends||{}))if(!used.has(k)&&now-(Date.parse(a?.updated||a?.created||'')||0)>6e5)delete S.atends[k];}
 const liveSetBase=d=>{LIVE.base=JSON.parse(JSON.stringify(d));IDB.set('liveBase',{ver:LIVE.ver,doc:LIVE.base}).catch(()=>{});};
 const liveDirty=()=>!!LIVE.base&&!deq(liveDoc(),LIVE.base);
 /* não mexe nos dados enquanto a pessoa está no meio de algo (janela aberta, arrastando, desenhando) */
-const liveWaitUI=()=>!!document.querySelector('dialog[open]')||(typeof PTR_DOWN!=='undefined'&&PTR_DOWN)||(typeof MODE!=='undefined'&&MODE.type&&MODE.type!=='idle');
+const liveWaitUI=()=>RECALC.size>0||CALCULATING.size>0||!!document.querySelector('dialog[open]')||(typeof PTR_DOWN!=='undefined'&&PTR_DOWN)||(typeof MODE!=='undefined'&&MODE.type&&MODE.type!=='idle');
 /* busca a versão do servidor; se este computador também mudou, junta */
 async function livePull(force){if(!liveUrl())return false;
  if(!force){const v=await liveGet('base=versao&'+presQ());if(!v?.ok)throw new Error(v?.erro||'o script não respondeu');if(v.min&&verLt(APP_VERSION,v.min)){liveOld(v.min);return false;}livePres(v);if(v.ver<=LIVE.ver){LIVE.err='';renderSyncPill();return false;}}
@@ -6873,7 +6894,7 @@ async function livePull(force){if(!liveUrl())return false;
  if(j.vazio){LIVE.ver=0;if(!LIVE.base)LIVE.base={s:{},b:[],c:null};return true;}   /* servidor sem base: este computador envia a sua */
  const t=liveFromFile(j.dados);let res=t,cf=[];
  if(!LIVE.base){if(hasWork())await snapTake('antes da base viva (servidor)',true);}           /* 1ª vez neste computador: vale a do servidor; a daqui fica em 🕘 Versões */
- else if(liveDirty())res=liveMerge(LIVE.base,liveDoc(),t,cf);
+ else{liveTomb();if(liveDirty())res=liveMerge(LIVE.base,liveDoc(),t,cf);}
  liveApply(res);LIVE.ver=j.ver;LIVE.at=j.at||'';LIVE.by=j.by||'';liveSetBase(t);LIVE.err='';
  if(cf.length)toast('Você e '+(j.by||'outra pessoa')+' alteraram o mesmo item ('+cf.length+' ponto(s) de conflito): ficou a alteração deste computador. A versão do outro fica nas versões diárias.','warn',9000);
  renderSyncPill();if(!deq(liveDoc(),t))liveLater();return true;}
@@ -6881,7 +6902,7 @@ async function livePull(force){if(!liveUrl())return false;
 async function liveSave(now){if(!liveUrl()||!LIVE.on)return;if(LIVE.busy){LIVE.again=true;return;}
  const wait=now?0:6000-(Date.now()-LIVE.last);if(wait>0){clearTimeout(LIVE.t);LIVE.t=setTimeout(()=>liveSave(),wait);return;}
  if(!LIVE.base)return;LIVE.busy=true;renderSyncPill(true);let wrote=false;
- try{for(let k=0;k<4;k++){const d=liveDoc();if(deq(d,LIVE.base))break;
+ try{liveTomb();for(let k=0;k<4;k++){const d=liveDoc();if(deq(d,LIVE.base))break;
    const j=await livePost({acao:'base-gravar',base:LIVE.ver,conteudo:liveFile(d),resumo:liveDiff(LIVE.base,d)});
    if(j?.ok){LIVE.ver=j.ver;LIVE.at=j.at;LIVE.by=userName()||'';LIVE.last=Date.now();liveSetBase(d);LIVE.err='';wrote=true;break;}
    if(j?.antiga){liveOld(j.min||'nova');break;}if(j?.conflito||j?.ocupado){await livePull(true);continue;}if(j?.travada){lockRevert(j);continue;}
@@ -6956,11 +6977,13 @@ const ident=()=>{const x=lsGet(IDENT_LS,null);return x&&x.nome&&x.email&&(x.mat|
 const GOOGLE_CLIENT_ID='357255617658-qp1ek0fed9pb88m5r23sotfl8o62dbp9.apps.googleusercontent.com',DIST=document.documentElement.dataset.dist==='1';
 const AUTH={g:'',email:'',nome:'',perfil:'',perm:null,exp:0};
 try{const x=JSON.parse(sessionStorage.getItem('rs-auth')||'null');if(x?.g&&x.exp>Date.now()+60e3)Object.assign(AUTH,x);}catch{}
+const jwtName=t=>{try{return JSON.parse(decodeURIComponent(escape(atob(t.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))))).name||'';}catch{return '';}};
 const jwtExp=t=>{try{return JSON.parse(atob(t.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))).exp*1000;}catch{return Date.now()+50*60e3;}};
 const can=k=>!AUTH.perm||!!AUTH.perm[k];
 const modOk=m=>!AUTH.perm||(m==='plan'?can('plan'):m==='base'?can('base'):m==='pub'?can('pub'):m==='acomp'?can('acomp')||can('sst'):true);
 async function gisReady(){await loadScript('https://accounts.google.com/gsi/client');if(!gisReady.ok){google.accounts.id.initialize({client_id:GOOGLE_CLIENT_ID,callback:r=>gisReady.cb?.(r.credential),auto_select:true,cancel_on_tap_outside:false});gisReady.ok=true;}}
 async function authLogin(tok){const j=await fetch(liveUrl(),{method:'POST',body:JSON.stringify({g:tok,acao:'auth',app:APP_VERSION})}).then(r=>r.json());if(!j?.ok)throw new Error(j?.erro||'login recusado');
+ if(!j.nome||String(j.nome).trim().toLowerCase()===String(j.email).toLowerCase())j.nome=jwtName(tok)||j.nome;
  Object.assign(AUTH,{g:tok,email:j.email,nome:j.nome,perfil:j.perfil,perm:j.perm,exp:jwtExp(tok)});try{sessionStorage.setItem('rs-auth',JSON.stringify(AUTH));}catch{}
  lsSet(IDENT_LS,{nome:j.nome,email:j.email,mat:j.mat||'',ok:true,google:true});lsSet(USER_LS,j.nome);permApply();return j;}
 function authOut(){Object.assign(AUTH,{g:'',email:'',nome:'',perfil:'',perm:null,exp:0});try{sessionStorage.removeItem('rs-auth');window.google?.accounts?.id?.disableAutoSelect?.();}catch{}}
@@ -6969,6 +6992,12 @@ function authSeen(j){if(j?.auth&&!j.pedido&&(AUTH.g||DIST)&&!IDENT_WAIT){authOut
 /* o Google entrega outro token antes de vencer, sem perguntar, para quem já aceitou */
 setInterval(()=>{if(AUTH.g&&AUTH.exp-Date.now()<5*60e3&&window.google?.accounts){gisReady.cb=t=>authLogin(t).catch(()=>{});google.accounts.id.prompt();}},60e3);
 function permApply(){if(!AUTH.perm||typeof MOD==='undefined')return;if(!can('acomp')&&can('sst'))ACOMP_VIEW='seguranca';if(!modOk(MOD))setMod(MODS.find(m=>modOk(m[0]))?.[0]||'plan');else{renderMods();renderAll();}}
+/* ---------- 🧹 compactar a base viva (só ADMIN; quem faz é o servidor, com cópia selada antes) ---------- */
+async function compOpen(){if(!AUTH.g||!can('admin')){toast('Só o administrador, depois de entrar com o Google.','warn');return;}if(liveDirty())await liveSave(true);
+ const j=await livePost({acao:'compactar'}).catch(e=>({erro:e.message}));if(!j?.ok){toast('Não consegui fazer a prévia'+(j?.erro?': '+j.erro:'.'),'bad',9000);return;}const r=j.rel,kb=n=>Math.round(n/1024).toLocaleString('pt-BR')+' KB';
+ dialog('🧹 Compactar a base viva',`<p>Prévia — nada mudou ainda: <b>${kb(r.antes)} → ${kb(r.depois)}</b>.</p><ul class="small"><li>${r.merges} unificação(ões) antiga(s) vão para <b>base/arquivo-merges.json</b>; ficam as ${r.mergesFicam} últimas (só essas podem ser desfeitas pela tela).</li><li>${r.trilhas} trilha(s) GPS de acompanhamentos encerrados simplificada(s): ${r.pontosAntes.toLocaleString('pt-BR')} → ${r.pontosDepois.toLocaleString('pt-BR')} pontos (6 m). Métricas e paradas não mudam.</li><li>${r.atends} atendimento(s) sem nenhuma rota removido(s).</li><li>${r.slugs.length?'Endereço do portal preenchido: '+r.slugs.map(esc).join(', '):'Todas as frentes já têm endereço do portal.'}</li></ul><p class="small muted">Antes de gravar, o servidor guarda uma cópia selada da base em base/backups/ (SHA-256 na descrição). Quem estiver conectado recebe a base nova sozinho.</p>`,[['Cancelar',null],['Compactar agora',()=>{compRun(j.ver);}]]);}
+async function compRun(ver){const j=await livePost({acao:'compactar',aplicar:true,ver}).catch(e=>({erro:e.message}));
+ if(j?.ok&&!j.nada){toast('✓ Base compactada: '+Math.round(j.rel.antes/1024)+' → '+Math.round(j.rel.depois/1024)+' KB. Cópia selada: base/backups/'+j.backup,'ok',14000);await livePull(true).catch(()=>{});}else if(j?.nada)toast('A base já estava compactada.','ok');else toast('Não compactou: '+(j?.erro||'erro'),'bad',9000);}
 /* ---------- 👥 usuários e permissões (só ADMIN) ---------- */
 let USR=null,RECON=null;
 const PERM_TXT={plan:'Planejamento',base:'Base ativa',pub:'Divulgação',acomp:'Acompanhamentos (consulta e tratativa)',sst:'Vistorias de segurança (Estúdio)','campo-acomp':'Campo: acompanhamento de rota','campo-sst':'Campo: vistorias',admin:'Usuários e reconciliação'};
@@ -7117,14 +7146,27 @@ const campoKey=()=>{if(DIST&&!CAT.acomp?.key)return '';/* versão do GitHub Page
 /* código de conexão codificado (RSC2-…): o WhatsApp não o transforma em link, então não abre por engano no navegador */
 const campoCode=()=>{const u=pubUrl();return isGasUrl(u)?'RSC2-'+btoa(u+'|'+campoKey()).replace(/=+$/,''):'';};
 /* ---------- botão no alto e diálogo Dados ---------- */
+/* 2.18.1 — popover “Ao vivo” (estilo Google Docs): quem está conectado, perfil, tela/rota e cadeado; atualiza a cada consulta de presença */
+const MOD_TXT={plan:'Planejamento',base:'Base ativa',pub:'Divulgação',acomp:'Acompanhamentos'};
+function presOpen(){let el=$('presPop');if(el){el.remove();return;}el=document.createElement('div');el.id='presPop';el.setAttribute('role','dialog');el.setAttribute('aria-label','Quem está usando agora');el.tabIndex=-1;
+ const b=$('syncPill').getBoundingClientRect();el.style.cssText=`position:fixed;top:${Math.round(b.bottom+6)}px;left:${Math.max(8,Math.round(Math.min(b.left,innerWidth-336)))}px;width:320px;max-width:calc(100vw - 16px);max-height:70vh;overflow:auto;z-index:2000;background:var(--panel,#fff);color:var(--ink,#17212c);border:1px solid #d1d5db;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.18);padding:12px`;
+ document.body.append(el);presRender();el.focus();
+ const off=e=>{if(!el.isConnected){document.removeEventListener('pointerdown',off,true);return;}if(!el.contains(e.target)&&!e.target.closest?.('#syncPill')){el.remove();document.removeEventListener('pointerdown',off,true);}};setTimeout(()=>document.addEventListener('pointerdown',off,true),0);
+ el.addEventListener('keydown',e=>{if(e.key==='Escape'){el.remove();$('syncPill')?.focus();}});}
+function presRender(){const el=$('presPop');if(!el)return;const r=MOD==='plan'?cur():null;
+ const L=[{n:userName()||'Você',pf:AUTH.perfil,mod:MOD,rid:r?.id||'',rn:r?.name||'',eu:true,lk:!!LOCK.mine},...LOCK.pres.map(p=>({...p,lk:!!p.rid&&LOCK.locks[p.rid]?.w===p.w}))];
+ const ini=n=>String(n||'?').split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join('').toUpperCase();
+ el.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px"><b>${LIVE.err?'⚠':'🟢'} Ao vivo · ${L.length} ${L.length>1?'conectados':'conectado'}</b><button class="sm" data-act="presClose" aria-label="Fechar" title="Fechar">✕</button></div>
+ <ul style="list-style:none;margin:0;padding:0;display:grid;gap:9px">${L.map(p=>`<li style="display:flex;gap:10px;align-items:center"><span aria-hidden="true" style="flex:none;width:32px;height:32px;border-radius:50%;background:${p.eu?'#2563eb':'#0d9488'};color:#fff;display:grid;place-items:center;font-weight:700;font-size:13px">${esc(ini(p.n))}</span><span style="min-width:0"><b>${esc(p.n||'sem nome')}</b>${p.eu?' <span class="muted">(você)</span>':''}${p.pf?` <span class="pill" style="font-size:11px;padding:1px 6px">${esc(p.pf)}</span>`:''}<br><span class="small muted">${esc(MOD_TXT[p.mod]||p.mod||'—')}${p.mod==='plan'&&p.rn?' · '+esc(p.rn):''}${p.lk?' · 🔒 editando':p.mod==='plan'&&p.rid?' · 👁 vendo':''}</span></span></li>`).join('')}</ul>
+ <p class="small muted" style="margin:10px 0 6px">Base versão ${LIVE.ver}${LIVE.at?' · gravada '+fmtDT(LIVE.at)+(LIVE.by?' por '+esc(LIVE.by):''):''}. O servidor guarda uma cópia por dia.${LIVE.err?'<br><span class="warn-t">⚠ '+esc(LIVE.err)+'</span>':''}</p><button class="sm" data-act="presDados">💾 Dados, link do cliente e cópias…</button>`;}
 function renderSyncPill(writing){const el=$('syncPill');if(!el)return;if(READONLY){el.hidden=true;return;}let t='💾 Dados',c='',ti='Dados: pasta compartilhada no Google Drive, link do cliente, backup e versões';
- if(LIVE.on){const oth=(LIVE.on2||[]).filter(n=>n&&n!==(userName()||'sem nome'));t=LIVE.err?'⚠ Ao vivo':(writing||LIVE.busy?'☁ Gravando…':'🟢 Ao vivo')+(oth.length?' · '+(oth.length+1)+' pessoas':'');c=LIVE.err?'bad':'ok';ti=(LIVE.err?'Sem conexão com o script do link ('+LIVE.err+'): as alterações ficam neste computador e vão sozinhas quando voltar. ':'Base viva — versão '+LIVE.ver+(LIVE.at?', gravada '+fmtDT(LIVE.at)+(LIVE.by?' por '+LIVE.by:''):'')+'. ')+(LOCK.pres.length?'Também usando agora: '+LOCK.pres.map(p=>p.n+' ('+(p.mod==='plan'?'Planejamento'+(p.rn?' · '+p.rn:''):p.mod==='base'?'Base':p.mod==='pub'?'Divulgação':p.mod==='acomp'?'Acompanhamentos':p.mod)+(LOCK.locks[p.rid]?.w===p.w?' · 🔒 editando':'')+')').join(', ')+'. ':oth.length?'Também usando agora: '+oth.join(', ')+'. ':'')+'Clique para ver os dados, o link do cliente e o backup.';}
+ if(LIVE.on){const oth=(LIVE.on2||[]).filter(n=>n&&n!==(userName()||'sem nome'));const nP=LOCK.got?new Set(LOCK.pres.map(p=>p.n).filter(n=>n&&n!==(userName()||'sem nome'))).size:oth.length;t=LIVE.err?'⚠ Ao vivo':(writing||LIVE.busy?'☁ Gravando…':'🟢 Ao vivo')+(nP?' · '+(nP+1)+' pessoas':'');c=LIVE.err?'bad':'ok';ti=(LIVE.err?'Sem conexão com o script do link ('+LIVE.err+'): as alterações ficam neste computador e vão sozinhas quando voltar. ':'Base viva — versão '+LIVE.ver+(LIVE.at?', gravada '+fmtDT(LIVE.at)+(LIVE.by?' por '+LIVE.by:''):'')+'. ')+(LOCK.pres.length?'Também usando agora: '+LOCK.pres.map(p=>p.n+' ('+(p.mod==='plan'?'Planejamento'+(p.rn?' · '+p.rn:''):p.mod==='base'?'Base':p.mod==='pub'?'Divulgação':p.mod==='acomp'?'Acompanhamentos':p.mod)+(LOCK.locks[p.rid]?.w===p.w?' · 🔒 editando':'')+')').join(', ')+'. ':oth.length?'Também usando agora: '+oth.join(', ')+'. ':'')+'Clique para ver quem está usando agora.';}
  else if(SYNC.need){t='🔄 Reconectar pasta do Drive (1 clique)';c='warn';ti='Clique para permitir que o Estúdio de Rotas use de novo a pasta “'+SYNC.name+'”';}
  else if(SYNC.err||SYNC.hold){t='⚠ Pasta';c='bad';ti=SYNC.err||'Falta decidir qual versão vale — clique para ver';}
  else if(SYNC.dir){t=writing||SYNC.busy?'☁ Gravando…':'☁ Pasta ✓';c='ok';ti='Salvando na pasta “'+SYNC.name+'”'+(SYNC.at?' — última gravação '+fmtDT(SYNC.at):'')+'. Clique para ver os dados, o link do cliente e o backup.';}
  el.textContent=t;el.className='pillbtn edit-only'+(c?' '+c:'');el.title=ti;el.setAttribute('aria-label',ti);el.hidden=false;}
 function openDados(){const ok=SYNC_OK(),u=pubUrl(),gas=isGasUrl(u);
- const st=(LIVE.on?`<p class="small">🟢 <b>Base viva</b> — várias pessoas ao mesmo tempo: versão ${LIVE.ver}${LIVE.at?' · gravada '+fmtDT(LIVE.at)+(LIVE.by?' por '+esc(LIVE.by):''):''}${LIVE.on2?.length?' · usando agora: '+LIVE.on2.map(esc).join(', '):''}. Os dados vão e vêm pelo script do link (a cada 15 s); a pasta fica para o portal, o campo e os relatórios.${LIVE.err?'<br><span class="warn-t">⚠ '+esc(LIVE.err)+'</span>':''}</p>`:'')+(!ok?'<p class="warn-t small">Este navegador não grava em pastas. Abra o Estúdio de Rotas no <b>Chrome</b> ou no <b>Edge</b> do computador.</p>'
+ const liveP=(LIVE.on?`<p class="small">🟢 <b>Base viva</b> — várias pessoas ao mesmo tempo: versão ${LIVE.ver}${LIVE.at?' · gravada '+fmtDT(LIVE.at)+(LIVE.by?' por '+esc(LIVE.by):''):''}${LIVE.on2?.length?' · usando agora: '+LIVE.on2.map(esc).join(', '):''}. Os dados vão e vêm pelo script do link (a cada 15 s); a pasta fica para o portal, o campo e os relatórios.${LIVE.err?'<br><span class="warn-t">⚠ '+esc(LIVE.err)+'</span>':''}</p>`:''),st=(!ok?'<p class="warn-t small">Este navegador não grava em pastas. Abra o Estúdio de Rotas no <b>Chrome</b> ou no <b>Edge</b> do computador.</p>'
   :SYNC.need?`<p class="warn-t small">⚠ A pasta <b>${esc(SYNC.name)}</b> precisa de permissão de novo (o navegador pergunta cada vez que o arquivo é aberto).</p>`
   :SYNC.dir?`<p class="small">✓ Conectado a <b>${esc(SYNC.name)}</b> — arquivo “${SYNC_FILE}”${SYNC.at?' · última gravação '+fmtDT(SYNC.at)+(SYNC.by?' por '+esc(SYNC.by):''):''}.</p>`
   :'<p class="small muted">Nenhuma pasta conectada: os dados ficam só neste navegador.</p>');
@@ -7132,14 +7174,14 @@ function openDados(){const ok=SYNC_OK(),u=pubUrl(),gas=isGasUrl(u);
  const btns=!ok?'':SYNC.need?'<button class="primary" data-act="syReconnect">☁ Reconectar pasta</button><button data-act="syPick">Escolher outra pasta…</button>'
   :SYNC.dir?`${SYNC.hold?'<button class="primary" data-act="syLoad">Resolver agora</button>':'<button data-act="syNow">⬆ Gravar agora</button>'}<button data-act="syLoad">⬇ Carregar da pasta</button><button data-act="syPick">Trocar pasta…</button><button data-act="syOff">Desconectar</button>`
   :'<button class="primary" data-act="syPick">☁ Conectar a pasta do projeto…</button>';
- dialog('Dados — pasta compartilhada, link do cliente e backup',`<div class="sec"><h3>☁ Pasta compartilhada (Google Drive)</h3>${st}${err}<div class="actions">${btns}</div>
+ const web=LIVE.on||DIST;dialog(web?'Dados — base viva, link do cliente e cópias':'Dados — pasta compartilhada, link do cliente e backup',`${web?`<div class="sec"><h3>🟢 Base viva (servidor)</h3>${liveP||'<p class="small">Conectando ao servidor…</p>'}<p class="muted small">Tudo vai e volta pelo servidor: não é preciso conectar pasta. O servidor guarda uma cópia por dia (30 dias).</p></div><details class="sec"><summary><b>Avançado</b> — pasta local do Drive (opcional: exportações, portal e relatórios)</summary>`:''}<div class="sec"><h3>☁ Pasta compartilhada (Google Drive)</h3>${st}${err}<div class="actions">${btns}</div>
  <p class="muted small">Escolha a pasta do projeto no <b>Google Drive para computador</b> (ex.: <b>I:\\Meu Drive\\Projeto Rotas</b>). A cada alteração o Estúdio de Rotas grava nela o arquivo “${SYNC_FILE}” e o Drive leva para os outros computadores. Em outro computador, abra o Estúdio de Rotas da mesma pasta e conecte a mesma pasta: os dados mais novos entram sozinhos.</p>
- <p class="muted small">Um editor por vez: se outro computador gravou depois da sua última leitura, o Estúdio de Rotas pergunta antes de gravar por cima, e a versão não escolhida é guardada. Uma cópia por dia fica na subpasta <b>versoes</b> (30 dias). As fotos das vistorias não vão para a pasta (Base ativa → Dados → Pacote com fotos).</p></div>
+ <p class="muted small">Um editor por vez: se outro computador gravou depois da sua última leitura, o Estúdio de Rotas pergunta antes de gravar por cima, e a versão não escolhida é guardada. Uma cópia por dia fica na subpasta <b>versoes</b> (30 dias). As fotos das vistorias não vão para a pasta (Base ativa → Dados → Pacote com fotos).</p></div>${web?'</details>':''}
  <div class="sec"><h3>🌐 Link do cliente (portal e mapas)</h3><label class="check"><input type="checkbox" id="syAuto" ${pubCfg().noAuto?'':'checked'} ${SYNC.dir?'':'disabled'}> Publicar o portal de linhas e os mapas na subpasta <b>publicado</b> a cada alteração</label>
  ${SYNC.pubAt?`<p class="small">Última publicação: ${fmtDT(SYNC.pubAt)} — portal com ${SYNC.pubN} linha(s) vigente(s).</p>`:''}<div class="actions"><button data-act="syPub" ${SYNC.dir?'':'disabled'}>🌐 Publicar agora</button><button data-act="syGs">⬇ Script do link (Apps Script)</button></div>
  <p class="small">Endereço do portal: ${u?`<a href="${esc(u)}" target="_blank" rel="noopener">${esc(u)}</a>${gas?'':' <span class="muted">(não é um link do Apps Script)</span>'}`:'<b>não definido</b> — Divulgação → Marca e contato → Endereço do portal'}.</p>
  <p class="muted small">O Google Drive não mostra páginas HTML a quem recebe o link. Publique uma vez o script do link (Apps Script, gratuito, na sua conta Google — passo a passo no guia) e cole o endereço dele (termina em <b>/exec</b>) em Marca e contato. O cliente abre o link e vê sempre a última versão publicada; os QR das placas, do folheto e do rotograma apontam para ele. Só a subpasta publicado é entregue — o arquivo de dados nunca.</p></div>
- <div class="sec"><h3>Cópias de segurança</h3><div class="actions"><button data-act="backup">⬇ Baixar backup (.json)</button><button data-act="import">⬆ Restaurar / importar</button><button data-act="snaps">🕘 Versões automáticas</button></div>
+ <div class="sec"><h3>Cópias de segurança</h3>${web?'<p class="small muted">Com a base viva, o servidor já guarda uma cópia por dia em versoes/ — não é preciso baixar backup.'+(can('admin')?' O backup manual fica aqui para o administrador, se precisar.':'')+'</p>':''}<div class="actions">${!web||can('admin')?'<button data-act="backup">⬇ Baixar backup (.json)</button>':''}<button data-act="import">⬆ Restaurar / importar</button><button data-act="snaps">🕘 Versões automáticas</button></div>
  <p class="muted small">Versões automáticas: neste navegador, a cada 30 min de trabalho com alterações. Último backup ou gravação na pasta: ${LAST_BACKUP?fmtDT(LAST_BACKUP):'nenhum'}.</p></div>
  <div class="sec"><h3>🗂 Onde cada arquivo fica na pasta</h3><label class="check"><input type="checkbox" id="syDl" ${dlFolderOn()?'checked':''} ${SYNC.dir?'':'disabled'}> Salvar o que eu exportar (backup, KML, planilhas, materiais, relatórios) na pasta do projeto, organizado por tipo — e não na pasta de downloads</label>
  <table class="t small"><tbody><tr><td><b>${esc(SYNC_FILE)}</b>, <b>versoes/</b></td><td>dados vivos e cópias diárias (gravados sozinhos)</td></tr><tr><td><b>publicado/</b></td><td>portal e mapas do cliente</td></tr><tr><td><b>campo/</b> pacote.json · entrada/ · importados/acompanhamentos/AAAA-MM · importados/vistorias/AAAA-MM · pacotes/</td><td>troca com o celular</td></tr><tr><td><b>inteligencia/</b></td><td>o que o sistema aprende (🧠)</td></tr><tr><td><b>04 Backups/dados/</b></td><td>backups .json (têm dados de passageiros — LGPD)</td></tr><tr><td><b>exportacoes/</b> kml · planilhas · gps · divulgacao · relatorios · somente-leitura</td><td>arquivos exportados</td></tr></tbody></table>
@@ -7150,7 +7192,7 @@ function openDados(){const ok=SYNC_OK(),u=pubUrl(),gas=isGasUrl(u);
  $('syDl')?.addEventListener('change',e=>{try{localStorage.setItem('rota-studio-dlpasta',e.target.checked?'1':'0');}catch{}});
  $('syAuto')?.addEventListener('change',e=>{CAT.pub={...pubCfg(),noAuto:!e.target.checked};catSave();if(e.target.checked)syncPubLater();});}
 const SYNC_ACT={histOpen:()=>histOpen(),recebOpen:()=>recebOpen(),usrOpen:()=>usrOpen(),reconOpen:()=>reconOpen(),usrAdd:()=>usrAdd(),usrLib:a=>usrLib(a),identSwap:()=>{authOut();lsSet(IDENT_LS,null);document.querySelectorAll('dialog[open]').forEach(x=>x.close());identGate();},
- dados:()=>SYNC.need?syncReconnect():openDados(),
+ dados:()=>LIVE.on?presOpen():SYNC.need?syncReconnect():openDados(),presClose:()=>{$('presPop')?.remove();$('syncPill')?.focus();},presDados:()=>{$('presPop')?.remove();openDados();},compOpen:()=>compOpen(),
  syPick:()=>{$('dlg').close();syncPick();},
  syReconnect:()=>{$('dlg').close();syncReconnect();},
  syNow:async()=>{SYNC.hash=null;await syncWrite();if(!SYNC.hold)openDados();},
@@ -7224,7 +7266,7 @@ function autorizar() {
 
 function campo_(p) {
   if (!acesso_(p.t, p.g).ok) return json_({ ok: false, erro: 'chave inválida' });
-  try { if (p.campo === 'arquivar') return arquivar_(p); if (p.campo === 'adotar') return verOk_(p.app) ? adotar_() : json_({ ok: false, erro: 'ESTA ABA ESTÁ COM UMA VERSÃO ANTIGA DO ESTÚDIO DE ROTAS — feche esta aba e abra de novo (Ctrl+F5). Até lá, nada do que for feito aqui chega aos colegas.' }); if (p.campo === 'caixa') return caixa_(p); if (p.campo === 'feito') return feito_(p); if (p.campo === 'status') return status_(p); if (p.campo === 'problema') return problema_(p); if (p.campo === 'problemas') return problemas_(); if (p.campo === 'retentar') return retentar_(p); if (p.campo === 'arquivo') return arquivo_(p); if (p.campo === 'recibos') return recibos_(p); if (p.campo === 'pacote-ver') return pacoteVer_(); return campoBase_(); } catch (x) { return json_({ ok: false, erro: 'script sem permissão ou pasta não encontrada — no editor do Apps Script, rode a função “autorizar” e publique uma nova versão (' + x.message + ')' }); }
+  try { if (p.campo === 'arquivar') return arquivar_(p); if (p.campo === 'adotar') return verOk_(p.app) ? adotar_() : json_({ ok: false, erro: 'ESTA ABA ESTÁ COM UMA VERSÃO ANTIGA DO ESTÚDIO DE ROTAS — feche esta aba e abra de novo (Ctrl+F5). Até lá, nada do que for feito aqui chega aos colegas.' }); if (p.campo === 'caixa') return caixa_(p); if (p.campo === 'feito') return feito_(p); if (p.campo === 'status') return status_(p); if (p.campo === 'problema') return problema_(p); if (p.campo === 'problemas') return problemas_(); if (p.campo === 'retentar') return retentar_(p); if (p.campo === 'arquivo') return arquivo_(p); if (p.campo === 'recibos') return recibos_(p); if (p.campo === 'foto') return foto_(p); if (p.campo === 'pacote-ver') return pacoteVer_(); return campoBase_(); } catch (x) { return json_({ ok: false, erro: 'script sem permissão ou pasta não encontrada — no editor do Apps Script, rode a função “autorizar” e publique uma nova versão (' + x.message + ')' }); }
 }
 
 function campoBase_() {
@@ -7304,13 +7346,13 @@ function presenca_(quem) {
    '' = nenhuma). Um cadeado por aba, vale 60 s e cada consulta renova; quem chega depois recebe trava:{ok:false,n}. */
 const TRAVA_MS = 90000;
 function presenca2_(p) {
-  const c = CacheService.getScriptCache(), agora = Date.now(), w = String(p.w || '').slice(0, 40), n = String(p.quem || '').slice(0, 60), rid = String(p.trava || '').slice(0, 40), e = String((p.u && p.u.email) || p.e || '').toLowerCase().slice(0, 120);
+  const c = CacheService.getScriptCache(), agora = Date.now(), w = String(p.w || '').slice(0, 40), n = String((p.u && p.u.nome) || p.quem || '').slice(0, 60), rid = String(p.trava || '').slice(0, 40), e = String((p.u && p.u.email) || p.e || '').toLowerCase().slice(0, 120);
   const res = { pres: [], locks: {}, trava: null }, lk = LockService.getScriptLock(), got = lk.tryLock(3000);
   try {
     const P = JSON.parse(c.get('PRES2') || '{}'), L = JSON.parse(c.get('TRAVAS') || '{}');
     Object.keys(L).forEach(function (k) { if (L[k].exp < agora) delete L[k]; });
     if (got && w && n) {
-      P[w] = { n: n, w: w, mod: String(p.onde || '').slice(0, 20), rid: String(p.rid || '').slice(0, 40), rn: String(p.rn || '').slice(0, 60), t: agora };
+      P[w] = { n: n, w: w, pf: String((p.u && p.u.perfil) || '').slice(0, 20), mod: String(p.onde || '').slice(0, 20), rid: String(p.rid || '').slice(0, 40), rn: String(p.rn || '').slice(0, 60), t: agora };
       Object.keys(L).forEach(function (k) { if (L[k].w === w && k !== rid) delete L[k]; });
       if (rid) { const x = L[rid]; if (!x || x.w === w) { L[rid] = { n: n, w: w, e: e, exp: agora + TRAVA_MS }; res.trava = { ok: true }; } else res.trava = { ok: false, n: x.n }; }
     }
@@ -7366,6 +7408,13 @@ function quem_(g) {
     const c = CacheService.getScriptCache();
     if (!c.get('ped:' + t.email)) { c.put('ped:' + t.email, '1', 3600); const lk = LockService.getScriptLock(); if (lk.tryLock(5000)) { try { const o = usrLer_(); o.pedidos[t.email] = { nome: t.nome, at: new Date().toISOString() }; usrGravar_(o); } finally { lk.releaseLock(); } } }
     return { email: t.email, nome: t.nome, perfil: '', mat: '' };
+  }
+  /* 2.18.1: cadastro com nome vazio ou igual ao e-mail (ex.: o dono, criado sozinho) passa a usar o nome do Google */
+  const semNome = function (x) { return !x || !String(x.nome || '').trim() || String(x.nome).trim().toLowerCase() === t.email; };
+  if (semNome(u) && t.nome && t.nome.toLowerCase() !== t.email) {
+    const lk = LockService.getScriptLock();
+    if (lk.tryLock(5000)) { try { const o = usrLer_(), x = o.us[t.email]; if (x && semNome(x)) { x.nome = t.nome; usrGravar_(o); } } finally { lk.releaseLock(); } }
+    u.nome = t.nome;
   }
   return { email: t.email, nome: u.nome || t.nome, perfil: u.perfil, mat: u.mat || '' };
 }
@@ -7447,8 +7496,87 @@ function admin_(d, u) {
       histAdd_({ at: new Date().toISOString(), by: u.nome, email: u.email, mat: u.mat, itens: [{ t: 'Reconciliação', a: 'aplicou', n: rel.trocas + ' linha(s) em ' + rel.arquivos + ' arquivo(s)' }] });
       return json_({ ok: true, rel: rel });
     }
+    if (d.acao === 'compactar') return compactarBase_(d, u);
     return json_({ ok: false, erro: 'pedido desconhecido' });
   } finally { lk.releaseLock(); }
+}
+/* ===== 2.18.1 — foto do Drive para o app e compactação da base ===== */
+/* foto já gravada no Drive, para o app mostrar/editar: só imagem dentro de vistorias-seguranca/ ou acompanhamentos-fotos/
+   da pasta do projeto. id = arquivo; ou l (linha) + n (nomes possíveis separados por |) em vistorias-seguranca/<l>/fotos */
+function foto_(p) {
+  const u = acesso_(p.t, p.g).u;
+  if (u && !['campo-sst', 'sst', 'acomp', 'campo-acomp'].some(function (k) { return permDe_(u)[k]; })) return negado_('ver fotos');
+  const raiz = raiz_(); let f = null;
+  if (p.id) { try { f = DriveApp.getFileById(String(p.id).slice(0, 80)); } catch (x) { f = null; } }
+  else if (p.l && p.n) {
+    const vs = raiz.getFoldersByName('vistorias-seguranca'), ls = vs.hasNext() ? vs.next().getFoldersByName(slug_(p.l)) : null, fs = ls && ls.hasNext() ? ls.next().getFoldersByName('fotos') : null;
+    if (fs && fs.hasNext()) { const d = fs.next(); String(p.n).split('|').slice(0, 4).some(function (n) { f = ultimo_(d, String(n).replace(/[\\\\/]/g, '_').slice(0, 160)); return !!f; }); }
+  }
+  if (!f) return json_({ ok: false, erro: 'foto não encontrada' });
+  let x = f, ok = false, fotos = false;
+  for (let i = 0; i < 6; i++) { const ps = x.getParents(); if (!ps.hasNext()) break; x = ps.next(); if (/^(vistorias-seguranca|acompanhamentos-fotos)$/.test(x.getName())) fotos = true; if (x.getId() === raiz.getId()) { ok = fotos; break; } }
+  const b = f.getBlob(), mt = String(b.getContentType() || '');
+  if (!ok || mt.indexOf('image/') !== 0) return json_({ ok: false, erro: 'arquivo não permitido' });
+  const by = b.getBytes(); if (by.length > 4e6) return json_({ ok: false, erro: 'foto grande demais' });
+  return json_({ ok: true, d: 'data:' + mt + ';base64,' + Utilities.base64Encode(by) });
+}
+/* Douglas-Peucker em metros; mantém o 1º, o último e cada troca do 4º item (fora do traçado) */
+function dp_(P, tol) {
+  const keep = P.map(function () { return false; }); keep[0] = keep[P.length - 1] = true;
+  for (let i = 1; i < P.length; i++) if (!!P[i][3] !== !!P[i - 1][3]) keep[i] = keep[i - 1] = true;
+  const k0 = Math.cos(P[0][0] * Math.PI / 180), xy = function (p) { return [p[1] * 111320 * k0, p[0] * 110540]; };
+  const seg = function (a, b) {
+    const st = [[a, b]];
+    while (st.length) {
+      const s = st.pop(), i0 = s[0], i1 = s[1]; if (i1 - i0 < 2) continue;
+      const A = xy(P[i0]), B = xy(P[i1]), dx = B[0] - A[0], dy = B[1] - A[1], L = dx * dx + dy * dy; let dm = -1, im = -1;
+      for (let i = i0 + 1; i < i1; i++) { const Q = xy(P[i]); let t = L ? ((Q[0] - A[0]) * dx + (Q[1] - A[1]) * dy) / L : 0; t = Math.max(0, Math.min(1, t)); const dd = Math.hypot(Q[0] - A[0] - t * dx, Q[1] - A[1] - t * dy); if (dd > dm) { dm = dd; im = i; } }
+      if (dm > tol) { keep[im] = true; st.push([i0, im], [im, i1]); }
+    }
+  };
+  let a = 0; for (let i = 1; i < P.length; i++) if (keep[i]) { seg(a, i); a = i; }
+  return P.filter(function (_, i) { return keep[i]; });
+}
+const slugUrl_ = function (s) { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'x'; };
+/* enxuga a base (idempotente). Métricas, paradas e fotos dos acompanhamentos não mudam. */
+function compactar_(doc, arq) {
+  const rel = { merges: 0, mergesFicam: 0, trilhas: 0, pontosAntes: 0, pontosDepois: 0, atends: 0, slugs: [] }, c = doc.cat || {}, m = c.meta || {};
+  arq = arq && Array.isArray(arq.merges) ? arq : { v: 1, nota: 'Unificações antigas tiradas da base viva (Estúdio de Rotas 2.18.1). Só consulta.', merges: [] };
+  const ja = {}; arq.merges.forEach(function (x) { ja[(x && x.id) || JSON.stringify(x)] = 1; });
+  if (Array.isArray(m.merges) && m.merges.length > 30) {
+    const vel = m.merges.slice(0, m.merges.length - 30);
+    vel.forEach(function (x) { const k = (x && x.id) || JSON.stringify(x); if (!ja[k]) { arq.merges.push(x); ja[k] = 1; } });
+    m.merges = m.merges.slice(-30); rel.merges = vel.length;
+  }
+  rel.mergesFicam = (m.merges || []).length;
+  Object.keys(c.acomps || {}).forEach(function (k) {
+    const a = c.acomps[k]; if (!a || a.status !== 'done' || a.trailDP || !Array.isArray(a.trail) || a.trail.length < 3) return;
+    const n0 = a.trail.length; a.trail = dp_(a.trail, 6); a.trailDP = 6; rel.trilhas++; rel.pontosAntes += n0; rel.pontosDepois += a.trail.length;
+  });
+  const usados = {}; (doc.routes || []).forEach(function (r) { if (r && r.plan && r.plan.aid) usados[r.plan.aid] = 1; });
+  Object.keys(doc.atends || {}).forEach(function (k) { if (!usados[k]) { delete doc.atends[k]; rel.atends++; } });
+  Object.keys(c.frentes || {}).forEach(function (k) { const f = c.frentes[k]; if (f && !f.slug) { f.slug = slugUrl_(f.name || k); rel.slugs.push(f.slug); } });
+  return { rel: rel, arq: arq };
+}
+/* chamado por admin_ (já com a trava do script) */
+function compactarBase_(d, u) {
+  const f = baseArq_(), v = baseVer_(); if (!f || !v.ver) return json_({ ok: false, erro: 'base vazia' });
+  const pasta = sub_(raiz_(), 'base'), fa = ultimo_(pasta, 'arquivo-merges.json'), txt = f.getBlob().getDataAsString('UTF-8');
+  let arq = null; try { arq = fa ? JSON.parse(fa.getBlob().getDataAsString('UTF-8')) : null; } catch (x) { return json_({ ok: false, erro: 'arquivo-merges.json ilegível — nada foi mudado' }); }
+  const doc = JSON.parse(txt), r = compactar_(doc, arq), novo = JSON.stringify(doc), rel = r.rel; rel.antes = txt.length; rel.depois = novo.length;
+  if (!d.aplicar) return json_({ ok: true, previa: true, ver: v.ver, rel: rel });
+  if (novo === txt) return json_({ ok: true, nada: true, ver: v.ver, rel: rel });
+  if (+d.ver !== v.ver) return json_({ ok: false, erro: 'a base mudou depois da prévia (versão ' + v.ver + ') — faça a prévia de novo' });
+  const quando = Utilities.formatDate(new Date(), 'GMT-3', 'yyyy-MM-dd_HHmmss'), nm = 'Rota Studio - base antes de compactar ' + quando + '.json';
+  const h = Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, txt));
+  const cp = f.makeCopy(nm, sub_(pasta, 'backups')); cp.setDescription('sha256:' + h + ' · versão ' + v.ver + ' · ' + u.email);   // cópia selada ANTES de mexer
+  if (cp.getBlob().getDataAsString('UTF-8').length !== txt.length) return json_({ ok: false, erro: 'a cópia de segurança não conferiu — nada foi mudado' });
+  const ta = JSON.stringify(r.arq); if (fa) fa.setContent(ta); else pasta.createFile('arquivo-merges.json', ta, 'application/json');
+  f.setContent(novo);
+  const at = new Date().toISOString(), pr = PropertiesService.getScriptProperties();
+  pr.setProperties({ BASE_VER: String(v.ver + 1), BASE_AT: at, BASE_BY: String('Compactação · ' + u.nome).slice(0, 60) });
+  histAdd_({ ver: v.ver + 1, at: at, by: u.nome, email: u.email, mat: u.mat, itens: [{ t: 'Base', a: 'compactou', n: Math.round(rel.antes / 1024) + ' → ' + Math.round(rel.depois / 1024) + ' KB' }] });
+  return json_({ ok: true, ver: v.ver + 1, rel: rel, backup: nm, sha256: h });
 }
 function histArqs_() { const o = [], it = histPasta_().getFiles(); while (it.hasNext()) { const f = it.next(); if (/^historico-\\d{4}-\\d{2}\\.jsonl$/.test(f.getName())) o.push(f); } return o; }
 function baseGet_(p, a) {
@@ -7665,7 +7793,7 @@ function doPost(e) {
   if (!a.ok) return json_({ ok: false, erro: a.erro, auth: true, pedido: !!a.pedido });
   const u = a.u, pode = function (k) { return !u || !!permDe_(u)[k]; };
   if (d.acao === 'auth') return u ? json_({ ok: true, email: u.email, nome: u.nome, mat: u.mat, perfil: u.perfil, perm: permDe_(u), modo: authModo_() }) : json_({ ok: false, erro: 'entre com o Google' });
-  if (/^(usuarios-|reconciliar$|legado$)/.test(String(d.acao || ''))) return u && permDe_(u).admin ? admin_(d, u) : json_({ ok: false, negado: true, erro: 'só o administrador' });
+  if (/^(usuarios-|reconciliar$|legado$|compactar$)/.test(String(d.acao || ''))) return u && permDe_(u).admin ? admin_(d, u) : json_({ ok: false, negado: true, erro: 'só o administrador' });
   if (d.acao === 'usuario') return usuario_(d);
   if (d.acao === 'base-gravar') return ['plan', 'base', 'pub', 'acomp', 'sst'].some(pode) ? baseGravar_(d, u) : negado_('gravar a base');
   if (d.acao === 'gravar' && d.nome === 'Rota Studio - dados.json') return json_({ ok: false, erro: 'versão antiga do Estúdio de Rotas — feche esta aba e abra de novo (Ctrl+F5)' });
