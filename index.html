@@ -710,7 +710,7 @@ body:not([data-mod="base"]) .ptleg{display:none!important}
 <script>
 'use strict';
 /* ===================== Utilidades ===================== */
-const APP_VERSION='2.18.1';
+const APP_VERSION='2.18.2';
 /* lotação padrão das viagens (2.8: 42 lugares) */
 const CAP_DEF=42;
 /* cores do mapa (2.7.1): IDA azul e VOLTA verde-água, sempre em linha contínua; deslocamento ocioso (garagem) tracejado cinza-escuro */
@@ -838,7 +838,7 @@ function newState(){return{
  fences:[],
  ui:{paxView:'full'},
  base:{on:true,tol:60,lineMode:'off',showStops:false,builtinOn:true,clientsOff:[]},
- cfg:{engine:'valhalla',fallbackOsrm:true,avoidAlleys:true,criterion:0.5,idleWeight:0.5,timeAdj:0,dwell:1,radius:700,abbr:true,maxName:50,preferVig:true,manualSpeed:20,capacity:42,maxRideMin:60,rideMargin:10,mainRoads:true,busNet:true,snapRoads:true,unpaved:false,noUturn:true,stopRadius:35,walkMode:'rua',newPoints:'auto',pathSuggest:true,defaultPlace:'kin-ph',autoRecalc:true,doorSide:true,doorMaxKm:0.8,litWalk:'auto'},
+ cfg:{engine:'valhalla',fallbackOsrm:true,avoidAlleys:true,criterion:0.5,idleWeight:0.5,timeAdj:0,dwell:1,radius:700,abbr:true,maxName:50,preferVig:true,manualSpeed:20,capacity:42,loadTargetPct:100,maxRideMin:60,rideMargin:10,mainRoads:true,busNet:true,snapRoads:true,unpaved:false,noUturn:true,stopRadius:35,walkMode:'rua',newPoints:'auto',pathSuggest:true,defaultPlace:'kin-ph',autoRecalc:true,doorSide:true,doorMaxKm:0.8,litWalk:'auto'},
  routes:[],cur:0,atends:{}};}
 let S=newState();
 let BASESETS=[];           // conjuntos de trajetos executados importados pelo usuário
@@ -889,7 +889,8 @@ function routeSnap(r){return JSON.stringify({stops:r.stops,addrStops:r.addrStops
 function pushUndo(label,r=cur()){if(!r)return;if(typeof notePathEdit==='function')notePathEdit(label,r);const u={rid:r.id,label,snap:routeSnap(r)};UNDO.push(u);UNDO_NEW.push(u);if(UNDO.length>50)UNDO.shift();updUndo();}
 /* edições desde o último changed(): é ali que o cadeado da rota é conferido (2.17) */
 let UNDO_NEW=[];
-function undoApply(u){const i=S.routes.findIndex(x=>x.id===u.rid);if(i<0)return -1;const r=S.routes[i];const sn=JSON.parse(u.snap);Object.assign(r,sn);if(!r.addrStops)delete r.addrStops;if(!r.pointMode)delete r.pointMode;if(!r.rejected)delete r.rejected;for(const m of u.more||[]){const x=S.routes.find(y=>y.id===m.rid);if(x){Object.assign(x,JSON.parse(m.snap));if(!x.addrStops)delete x.addrStops;if(!x.pointMode)delete x.pointMode;}}return i;}
+function pushUndoAll(label){const u={rid:'*',label,all:JSON.stringify(S.routes),at:JSON.stringify(S.atends||{}),cur:S.cur};UNDO.push(u);UNDO_NEW.push(u);if(UNDO.length>50)UNDO.shift();updUndo();}
+function undoApply(u){if(u.all){S.routes=JSON.parse(u.all);S.atends=JSON.parse(u.at);return Math.max(0,Math.min(u.cur||0,S.routes.length-1));}const i=S.routes.findIndex(x=>x.id===u.rid);if(i<0)return -1;const r=S.routes[i];const sn=JSON.parse(u.snap);Object.assign(r,sn);if(!r.addrStops)delete r.addrStops;if(!r.pointMode)delete r.pointMode;if(!r.rejected)delete r.rejected;for(const m of u.more||[]){const x=S.routes.find(y=>y.id===m.rid);if(x){Object.assign(x,JSON.parse(m.snap));if(!x.addrStops)delete x.addrStops;if(!x.pointMode)delete x.pointMode;}}return i;}
 function undo(){const u=UNDO.pop();updUndo();if(!u)return;const i=undoApply(u);if(i<0){toast('A rota desta edição foi excluída.','warn');return;}S.cur=i;toast('Desfeito: '+u.label);changed({recalc:true});}
 function updUndo(){const b=$('btnUndo');if(b){b.disabled=!UNDO.length;b.title=UNDO.length?'Desfazer: '+UNDO.at(-1).label+' (Ctrl+Z)':'Nada para desfazer';}}
 
@@ -1495,11 +1496,15 @@ function calCompute(){CAL_LAST=[];const pairs=[];qsa('[data-cal]').forEach(inp=>
 let SCN=null;const SCN_WARN_MIN=3;
 /* tempo-alvo da otimização = máximo do contrato − margem de trânsito (0 = sem limite) */
 const SCN_BIG=60;/* acima disso (e com mais passageiros que a lotação) os Cenários vão direto à divisão em veículos */
+/* 2.18.2: meta de lotação — com 90%, um veículo de 42 leva até 37 (folga para não colar um em 42/42 e outro em 28/42) */
+const effCap=(cap=num(S.cfg.capacity)||CAP_DEF,pct=num(S.cfg.loadTargetPct)||100)=>Math.max(1,Math.floor(cap*clamp(pct,50,100)/100+1e-9));
 function rideTarget(){const m=num(S.cfg.maxRideMin)||0;return m?Math.max(5,m-(num(S.cfg.rideMargin)||0)):0;}
 /* assistente antes de otimizar: os quatro valores são confirmados a cada vez e ficam lembrados em S.cfg */
 function scnAsk(o){const c=S.cfg,f=(id,l,v,mn,mx,st,t)=>`<label class="field" title="${t}"><span>${l}</span><input id="${id}" type="number" min="${mn}" max="${mx}" step="${st}" value="${v}"></label>`;
- dialog('🎯 Antes de otimizar',`<p class="muted">Confira as regras desta otimização. Os valores ficam lembrados para a próxima.</p><div class="scn-form">${f('askMax','Tempo máximo a bordo (min)',num(c.maxRideMin)||60,10,300,5,'Limite do contrato: ninguém passa disso dentro do veículo')}${f('askMg','Margem para o trânsito (min)',c.rideMargin??10,0,60,5,'A otimização mira no máximo menos a margem')}${f('askCap','Lotação do veículo',num(c.capacity)||CAP_DEF,1,120,1,'Passageiros por veículo')}${f('askR','Caminhada até o ponto (m)',num(c.radius)||700,100,1500,50,'Raio a pé pela rua')}</div><p class="small muted">Nenhum veículo passa do <b>tempo-alvo</b> (máximo − margem; com 60 e 10, alvo de 50 min) nem da lotação. O resultado mostra a <b>frota mínima</b>.</p>`,
- [['Cancelar',null],['Otimizar',()=>{const mx=clamp(Math.round(num($('askMax').value)||60),10,300);S.cfg.maxRideMin=mx;S.cfg.rideMargin=clamp(Math.round(num($('askMg').value)||0),0,mx-5);S.cfg.capacity=clamp(Math.round(num($('askCap').value)||CAP_DEF),1,120);S.cfg.radius=clamp(Math.round(num($('askR').value)||700),50,1500);scheduleSave();setTimeout(()=>openScenarios({...o,go:true}),0);}]]);}
+ dialog('🎯 Antes de otimizar',`<p class="muted">Confira as regras desta otimização. Os valores ficam lembrados para a próxima.</p><div class="scn-form">${f('askMax','Tempo máximo a bordo (min)',num(c.maxRideMin)||60,10,300,5,'Limite do contrato: ninguém passa disso dentro do veículo')}${f('askMg','Margem para o trânsito (min)',c.rideMargin??10,0,60,5,'A otimização mira no máximo menos a margem')}${f('askCap','Lotação do veículo',num(c.capacity)||CAP_DEF,1,120,1,'Passageiros por veículo')}${f('askLoad','Meta de lotação (%)',num(c.loadTargetPct)||100,50,100,5,'100% = todos os lugares; 90% = folga de 10%')}${f('askR','Caminhada até o ponto (m)',num(c.radius)||700,100,1500,50,'Raio a pé pela rua')}</div><p class="small" id="askTgt" aria-live="polite"></p><p class="small muted">O <b>teto</b> é rígido (ninguém passa dele a bordo); a otimização mira o <b>tempo-alvo</b> = teto − margem. O resultado mostra a <b>frota mínima</b>.</p>`,
+ [['Cancelar',null],['Otimizar',()=>{const mx=clamp(Math.round(num($('askMax').value)||60),10,300);S.cfg.maxRideMin=mx;S.cfg.rideMargin=clamp(Math.round(num($('askMg').value)||0),0,mx-5);S.cfg.capacity=clamp(Math.round(num($('askCap').value)||CAP_DEF),1,120);S.cfg.loadTargetPct=clamp(Math.round(num($('askLoad').value)||100),50,100);S.cfg.radius=clamp(Math.round(num($('askR').value)||700),50,1500);scheduleSave();setTimeout(()=>openScenarios({...o,go:true}),0);}]]);$('dlgBody').addEventListener('input',scnAskHint);scnAskHint();}
+function scnAskHint(){const el=$('askTgt');if(!el)return;const mx=clamp(Math.round(num($('askMax').value)||60),10,300),mg=clamp(Math.round(num($('askMg').value)||0),0,mx-5),cap=clamp(Math.round(num($('askCap').value)||CAP_DEF),1,120),pc=clamp(Math.round(num($('askLoad').value)||100),50,100);
+ el.innerHTML='Teto rígido <b>'+mx+' min</b> − margem <b>'+mg+' min</b> = tempo-alvo <b>'+Math.max(5,mx-mg)+' min</b> · lotação '+cap+' × '+pc+'% → <b>até '+effCap(cap,pc)+' pass./veículo</b>.';}
 /* veículo que junta corredores opostos (lados diferentes do destino/origem): ângulo ocupado > 120° entre os pontos a mais de 1,5 km */
 function mixCorr(list,hub){if(!validLL(hub))return false;const A=list.filter(s=>validLL(s)&&distM(s,hub)>1500).map(s=>Math.atan2(s.lat-hub.lat,(s.lon-hub.lon)*Math.cos(hub.lat*Math.PI/180))).sort((a,b)=>a-b);if(A.length<2)return false;let gap=A[0]+2*Math.PI-A.at(-1);for(let i=1;i<A.length;i++)gap=Math.max(gap,A[i]-A[i-1]);return 2*Math.PI-gap>Math.PI*2/3;}
 /* frota mínima entre os cenários que respeitam alvo e lotação */
@@ -1541,13 +1546,19 @@ async function splitRows(ctx,base,lim,cap,kMin,kWant){const r=ctx.r,list=base.li
  const sig=x=>x.veh.map(v=>v.list.map(s=>s.id).sort().join(',')).sort().join('|');const uniq=[];for(const x of out){const d=uniq.find(y=>sig(y)===sig(x));if(d)(d.also=d.also||[]).push(x.name.replace(/ — .*/,''));else uniq.push(x);}
  return uniq.filter(x=>!x.veh.some(v=>mixCorr(v.list,hub)));/* não mistura corredores opostos num veículo */}
 /* ---------- abrir / calcular ---------- */
-async function openScenarios(o={}){const r=cur();if(!r)return;const ok=r.stops.filter(s=>!s.pending&&validLL(s));if(ok.length<2){toast('São necessários pelo menos 2 pontos com coordenadas.','warn');return;}if(!o.go){scnAsk(o);return;}
- const R=clamp(num(S.cfg.radius)||700,50,1500),lim=rideTarget(),cap=num(S.cfg.capacity)||CAP_DEF,kWant=Math.max(0,Math.round(num(o.veh??(SCN?.r===r?SCN.kWant:0))||0));
+/* 2.18.2: rota de um atendimento com vários veículos — “Este veículo” só reordena/otimiza os pontos dele (nunca divide);
+   “Todo o atendimento” junta os passageiros de todos os veículos do mesmo sentido e, ao aplicar, substitui os veículos */
+function scnAtend(r){const A=r?.plan?.aid&&S.atends?.[r.plan.aid];if(!A)return null;const sib=S.routes.filter(x=>x.plan?.aid===A.id&&x.dir===r.dir);return sib.length>1||A.nveh>1?{A,sib}:null;}
+function scnVirtual(r,{A,sib}){const V=clone(r);Object.assign(V,{id:'atend:'+A.id+':'+r.dir,name:(A.name||r.name)+' · todo o atendimento',stops:sib.flatMap(x=>clone(x.stops)),legs:{},calc:null,lockFirst:false,lockLast:false,_lastOpt:null});
+ if(sib.every(x=>x.addrStops?.length))V.addrStops=sib.flatMap(x=>clone(x.addrStops));else delete V.addrStops;V._atend={aid:A.id,dir:r.dir,ids:sib.map(x=>x.id)};return V;}
+const scnHas=r=>r?._atend?r._atend.ids.every(id=>S.routes.some(x=>x.id===id)):S.routes.includes(r);
+async function openScenarios(o={}){const r0=cur();if(!r0)return;const AT0=scnAtend(r0),scope=AT0?(o.scope==='all'?'all':'veh'):'',r=scope==='all'?scnVirtual(r0,AT0):r0;const ok=r.stops.filter(s=>!s.pending&&validLL(s));if(ok.length<2){toast('São necessários pelo menos 2 pontos com coordenadas.','warn');return;}if(!o.go){scnAsk(o);return;}
+ const R=clamp(num(S.cfg.radius)||700,50,1500),lim=rideTarget(),cap=effCap(),kWant=Math.max(0,Math.round(num(o.veh??(SCN?.r===r?SCN.kWant:0))||0));
  const sig0=stopsSig(r),src=addrSource(r),cr={stops:src,calc:r.calc,rejected:r.rejected,dir:r.dir},cl=clusterStops(cr,clusterR(R)),cons=cl.stops;let clF=null;if(cl.mode!=='free'){clF=clusterStops({...cr,stops:clone(src)},clusterR(R),'free');if(clF.stops.length>=cons.length)clF=null;}
  /* lote grande: mais passageiros do que cabem num veículo e muitos pontos — rota única é impossível, então vai direto à divisão em veículos (sem ordenar/traçar todos como uma rota só) */
- const big=ok.length>SCN_BIG&&ok.reduce((a,s)=>a+paxW(s),0)>cap;
+ const big=scope!=='veh'&&ok.length>SCN_BIG&&ok.reduce((a,s)=>a+paxW(s),0)>cap;
  if(big)await tick();
- const ctx=await optContext(r,[ok,cons,clF?clF.stops:[]],big);if(cur()!==r)return;if(stopsSig(r)!==sig0){toast('A rota foi alterada durante o cálculo — abra os Cenários de novo.','warn');return;}const lam=ctx.lam,first=r.lockFirst?ok[0]:null,last=r.lockLast&&ok.length>1?ok.at(-1):null;
+ const ctx=await optContext(r,[ok,cons,clF?clF.stops:[]],big);if(cur()!==r0)return;if(stopsSig(r)!==sig0){toast('A rota foi alterada durante o cálculo — abra os Cenários de novo.','warn');return;}const lam=ctx.lam,first=r.lockFirst?ok[0]:null,last=r.lockLast&&ok.length>1?ok.at(-1):null;
  const rows=[];const totPax=ok.reduce((a,s)=>a+paxW(s),0);
  try{showProgress('Otimizando cenários…');
   rows.push({id:'cur',name:'Atual',desc:'Pontos e ordem de hoje',list:ok,kpi:evalPlan(ctx,ok),same:true,noTrace:big});await tick();
@@ -1564,18 +1575,18 @@ async function openScenarios(o={}){const r=cur();if(!r)return;const ok=r.stops.f
   if(cons.length){const c=big?{list:cons}:orderStops(ctx,cons,OBJ.bal(lam));rows.push({id:'cons',name:cl.mode==='free'?'Pontos estratégicos · menos pontos':'Pontos estratégicos (base + sugeridos)',desc:cons.length+' ponto(s) para '+cl.nPax+' passageiro(s) no raio de '+R+' m: '+cl.nVig+' padrão'+(cl.nNew?' + '+cl.nNew+' sugerido(s) fora da base'+(cl.gap?' (a base não atendia '+cl.gap+')':''):'')+' · ordem por tempo + ocioso'+lockTxt,list:c.list,kpi:evalPlan(ctx,c.list),cons:true,src,keep:cl.keep,noTrace:big});await tick();}
   if(clF){const c=big?{list:clF.stops}:orderStops(ctx,clF.stops,OBJ.bal(lam));rows.push({id:'free',name:'Menos pontos possível',desc:clF.stops.length+' ponto(s), sem prioridade para a base ('+clF.nVig+' padrão + '+clF.nNew+' novo(s)) — coleta concentrada (hubbing) · ordem por tempo + ocioso'+lockTxt,list:c.list,kpi:evalPlan(ctx,c.list),cons:true,src:clone(src),keep:clF.keep,noTrace:big});await tick();}
  }finally{hideProgress();}
- const X={r,rows,ctx,R,lim,cap,kWant,at:Date.now(),sig:sig0,traced:false,manual:SCN?.r===r?SCN.manual:null};SCN=X;
+ const X={r,r0,scope,rows,ctx,R,lim,cap,capV:num(S.cfg.capacity)||CAP_DEF,pct:clamp(num(S.cfg.loadTargetPct)||100,50,100),kWant,at:Date.now(),sig:sig0,traced:false,manual:SCN?.r===r?SCN.manual:null};SCN=X;
  /* 1ª passada: traça e mede cada cenário */
  if(scnCanTrace())await scnMeasureAll(X);
  /* divisão em veículos: lotação estourada, tempo a bordo acima do limite ou pedido explícito */
  const fits=x=>!lim||kOf(x).maxRide<=lim+0.5,byScore=(x,y)=>kOf(x).score-kOf(y).score,cand=()=>rows.filter(x=>x.id!=='cur'&&!x.split);
  /* lote grande: a lista não foi ordenada, então o tempo a bordo dela não serve para estimar a frota — parte da lotação e prefere os pontos da base */
  const needK=Math.ceil(totPax/cap),best=(big&&rows.find(x=>x.id==='cons'))||[...cand()].sort(byScore)[0];
- if(best&&kWant!==1&&(kWant>1||needK>1||(lim&&!cand().some(fits)))){const kMin=Math.max(needK,lim&&!big?Math.ceil(kOf(best).maxRide/lim):2);showProgress('Dividindo em veículos…');let sp;try{sp=await splitRows(ctx,best,lim,cap,kMin,kWant);}finally{hideProgress();}if(SCN!==X)return;rows.push(...sp);if(sp.length&&scnCanTrace())await scnMeasureAll(X,sp);}
+ if(best&&scope!=='veh'&&kWant!==1&&(kWant>1||needK>1||(lim&&!cand().some(fits)))){const kMin=Math.max(needK,lim&&!big?Math.ceil(kOf(best).maxRide/lim):2);showProgress('Dividindo em veículos…');let sp;try{sp=await splitRows(ctx,best,lim,cap,kMin,kWant);}finally{hideProgress();}if(SCN!==X)return;rows.push(...sp);if(sp.length&&scnCanTrace())await scnMeasureAll(X,sp);}
  if(X.manual&&!rows.some(x=>x.id==='manual')){rows.push(X.manual);}
  scnRecommend(X);if(SCN===X)renderScenarios();}
 /* traça e mede (as linhas ainda não medidas); depois refaz a ordem com o custo real dos trechos */
-async function scnMeasureAll(X,only){const r=X.r,ctx=X.ctx,lam=ctx.lam,list=(only||X.rows).filter(x=>!x.m&&!x.noTrace);const n=list.reduce((a,x)=>a+(x.split?x.veh.length:1),0);let k=0;const alive=()=>SCN===X&&S.routes.includes(r)&&stopsSig(r)===X.sig;
+async function scnMeasureAll(X,only){const r=X.r,ctx=X.ctx,lam=ctx.lam,list=(only||X.rows).filter(x=>!x.m&&!x.noTrace);const n=list.reduce((a,x)=>a+(x.split?x.veh.length:1),0);let k=0;const alive=()=>SCN===X&&scnHas(r)&&stopsSig(r)===X.sig;
  try{for(const x of list){if(!alive())return;
    if(x.split){for(const[i,v]of x.veh.entries()){showProgress('Traçando cenário '+(++k)+'/'+n+': '+x.name+' · veículo '+(i+1)+'…');const sub=x.from.cons?addrSubset(x.from.src,v.list):null;const res=await scnTraceList(r,v.list,{addr:sub,lockOff:true},lam);v.t=res.t;v.m=res.m&&{...v.kpi,...res.m,walkAvg:v.kpi.walkAvg,walkMax:v.kpi.walkMax,far:v.kpi.far,walkEst:v.kpi.walkEst};}
     x.m=aggPlan(ctx,x.veh,v=>v.m);x.m.score=x.veh.reduce((a,v)=>a+(v.m?.score||0),0);continue;}
@@ -1605,14 +1616,15 @@ function renderScenarios(){const X=SCN;if(!X)return;const rows=X.rows,lim=X.lim,
  const iw=['Normal','Média','Alta','Muito alta'],adj=X.ctx.adj,meas=rows.some(x=>x.m);
  const nm=x=>`<b>${esc(x.name)}</b>${x.rec?(x.id==='cur'?' <span class="chip ok" title="Nenhum cenário ficou melhor que a rota atual">recomendado: manter</span>':' <span class="chip ok">recomendado</span>'):''}${x.m?' <span class="chip" title="Valores medidos no traçado pelas vias (igual ao 🧭 Recalcular)">✓ traçado</span>':' <span class="chip warn" title="Sem traçado: valores estimados pela matriz de distâncias">≈ estimado</span>'}${x.refined?` <span class="chip info" title="A ordem foi refeita com os tempos reais dos trechos traçados">ajustado pelo traçado −${dur(x.refined.gain)}</span>`:''}`;
  const sub=x=>{const k=x.m,e=x.kpi,a=[];if(k&&e&&!x.split&&Math.abs(k.routeMin-e.routeMin)>=2)a.push('estimativa da matriz '+dur(e.routeMin)+' → traçado '+dur(k.routeMin));if(k?.warn)a.push('⚠ '+k.warn+' trecho(s) com alerta');if(k?.uturnOk)a.push('↺ '+k.uturnOk+' retorno(s) na via');const st=k?scnSafetyTxt(k):'';if(st)a.push('voltas por segurança: '+st);if(x.also?.length)a.push('igual a: '+x.also.join(', '));return a.length?`<div class="small muted">${esc(a.join(' · '))}</div>`:'';};
- const h=`<div class="scn-form"><label class="field"><span>Tempo máx. a bordo (min)</span><input id="scnLim" type="number" min="0" max="300" step="5" value="${num(c.maxRideMin)||0}"></label><label class="field" title="A otimização mira no máximo − margem"><span>Margem (min)</span><input id="scnMg" type="number" min="0" max="60" step="5" value="${num(c.rideMargin)||0}"></label><label class="field"><span>Raio de caminhada (m)</span><input id="scnR" type="number" min="100" max="1500" step="50" value="${X.R}"></label><label class="field"><span>Lotação</span><input id="scnCap" type="number" min="1" max="120" value="${X.cap}"></label><label class="field" title="Tempo médio parado em cada ponto para o embarque"><span>Embarque por ponto (min)</span><input id="scnDw" type="number" min="0" max="15" step="0.5" value="${X.ctx.dwell}"></label><label class="field"><span>Veículos</span><select id="scnVeh"><option value="0" ${!X.kWant?'selected':''}>Automático</option>${[1,2,3,4,5,6,8,10,12,15,20,25,30].map(v=>`<option value="${v}" ${X.kWant===v?'selected':''}>${v}</option>`).join('')}</select></label><label class="field"><span>Peso do ocioso</span><select id="scnIw">${[0,0.5,1,1.5].map(v=>`<option value="${v}" ${num(c.idleWeight)===v?'selected':''}>${iw[v*2]}</option>`).join('')}</select></label><button data-act="scnRun">↻ Recalcular</button></div>
+ const sc=X.scope?scnAtend(X.r0):null,nAll=sc?sc.sib.reduce((a,x)=>a+paxCount(x),0):0;
+ const h=`${sc?`<div class="row" role="tablist" aria-label="Escopo dos cenários" style="gap:6px;margin-bottom:6px"><button role="tab" aria-selected="${X.scope==='veh'}" class="${X.scope==='veh'?'primary':''}" data-act="scnScope" data-s="veh">Este veículo (${paxCount(X.r0)} pass.)</button><button role="tab" aria-selected="${X.scope==='all'}" class="${X.scope==='all'?'primary':''}" data-act="scnScope" data-s="all">Todo o atendimento (${nAll} passageiros)</button></div><p class="small muted" style="margin:0 0 8px">${X.scope==='veh'?'Só a ordem e os pontos deste veículo — aqui não se divide nem se cria veículo.':'Divide de novo todos os passageiros de '+sc.sib.length+' veículo(s) ('+esc(X.r0.dir)+') e, ao aplicar, substitui os veículos do atendimento (↶ Desfazer volta tudo).'}</p>`:''}<div class="scn-form"><label class="field"><span>Tempo máx. a bordo (min)</span><input id="scnLim" type="number" min="0" max="300" step="5" value="${num(c.maxRideMin)||0}"></label><label class="field" title="A otimização mira no máximo − margem"><span>Margem (min)</span><input id="scnMg" type="number" min="0" max="60" step="5" value="${num(c.rideMargin)||0}"></label><label class="field"><span>Raio de caminhada (m)</span><input id="scnR" type="number" min="100" max="1500" step="50" value="${X.R}"></label><label class="field"><span>Lotação</span><input id="scnCap" type="number" min="1" max="120" value="${X.capV||X.cap}"></label><label class="field" title="100% = todos os lugares; 90% = folga de 10%"><span>Meta de lotação (%)</span><input id="scnLoad" type="number" min="50" max="100" step="5" value="${X.pct||100}"></label><label class="field" title="Tempo médio parado em cada ponto para o embarque"><span>Embarque por ponto (min)</span><input id="scnDw" type="number" min="0" max="15" step="0.5" value="${X.ctx.dwell}"></label><label class="field"><span>Veículos</span><select id="scnVeh"><option value="0" ${!X.kWant?'selected':''}>Automático</option>${[1,2,3,4,5,6,8,10,12,15,20,25,30].map(v=>`<option value="${v}" ${X.kWant===v?'selected':''}>${v}</option>`).join('')}</select></label><label class="field"><span>Peso do ocioso</span><select id="scnIw">${[0,0.5,1,1.5].map(v=>`<option value="${v}" ${num(c.idleWeight)===v?'selected':''}>${iw[v*2]}</option>`).join('')}</select></label><button data-act="scnRun">↻ Recalcular</button></div>
  <div class="row small" style="gap:8px;margin:-2px 0 8px;flex-wrap:wrap"><label class="check" style="margin:0"><input type="checkbox" id="scnTrace" ${c.scnTrace!==false?'checked':''}> Traçar cada cenário para medir (mais lento, valores reais)</label><button class="sm" data-act="scnManual" title="KML/KMZ do My Maps com os pontos na ordem planejada à mão">📂 Comparar com a minha rota (KML)</button>${X.manual?'<span class="chip info">rota manual: '+esc(X.manual.file||'')+'</span>':''}</div>
  <div class="scn-wrap"><table class="t scn"><thead><tr><th>Cenário</th>${cols.map(([,l])=>`<th class="r">${l}</th>`).join('')}<th></th></tr></thead><tbody>${rows.map(x=>{const K=kOf(x);if(!K)return '';return `<tr class="${x.rec?'rec':''}${x.id==='manual'?' man':''}"><td>${nm(x)}<div class="small muted">${esc(x.desc)}</div>${sub(x)}</td>${cols.map(([k,,f,mn])=>{const v=K[k],over=k==='maxRide'&&lim&&v>lim+0.5,isB=mn&&x.id!=='cur'&&alt.length>1&&Math.abs(v-best[k])<1e-6;return `<td class="r ${isB?'best':''} ${over?'over':''}">${(k==='routeMin'&&x.split?'máx ':'')+(k==='walkAvg'&&K.walkEst?'≈':'')+(v==null?'—':f(v))}${over?' ⚠':''}${k==='walkAvg'&&K.walkMax?`<div class="small muted">máx ${K.walkEst?'≈':''}${Math.round(K.walkMax)} m</div>`:''}</td>`;}).join('')}<td>${x.id==='cur'?'':`<button class="sm ${x.rec?'primary':''}" data-act="scnApply" data-id="${x.id}">Aplicar</button>`}</td></tr>`;}).join('')}</tbody></table></div>
  ${X.kWant===1&&rows[0].list.reduce((a,s)=>a+paxW(s),0)>X.cap?`<div class="note warn">Com 1 veículo, ${rows[0].list.reduce((a,s)=>a+paxW(s),0)} passageiros passam da lotação (${X.cap}). Escolha “Veículos: Automático” para comparar divisões.</div>`:''}
  ${lim&&!rows.some(x=>x.id!=='cur'&&!x.split&&kOf(x)&&kOf(x).maxRide<=lim+0.5)?`<div class="note warn">Com um só veículo nenhum cenário fica abaixo de ${dur(lim)} a bordo.${rows.some(x=>x.split)?' A divisão em veículos é a alternativa — cada um vira uma rota nova e a rota original é mantida.':' Aumente o raio, o limite ou divida a rota (⋯ Rotas → Dividir em veículos).'}</div>`:''}
  ${!meas&&X.ctx.warn?'':!meas?`<div class="note info">Valores estimados pela matriz de distâncias (sem traçado). Marque “Traçar cada cenário” para medir pelas vias — a estimativa costuma ficar abaixo do real, porque não conta os contornos sem retorno nem o lado da porta.</div>`:''}
  ${rows[0].rec&&meas?`<div class="note ok">Nenhum cenário ficou melhor que a rota atual no traçado — a recomendação é manter a ordem e os pontos de hoje.</div>`:''}
- ${(()=>{const k=scnMinFleet(X),mx=num(c.maxRideMin)||0;return k?`<div class="note ok">Frota mínima: <b>${k} veículo${k>1?'s':''}</b> — até ${X.cap} passageiros cada${X.lim?` e até ${dur(X.lim)} a bordo (máximo ${dur(mx)} − margem ${nf(mx-X.lim,0)} min)`:''}.</div>`:`<div class="note bad">Nenhum cenário respeita ao mesmo tempo a lotação (${X.cap}) e o tempo-alvo${X.lim?' ('+dur(X.lim)+')':''}. Escolha mais veículos em “Veículos”, aumente a margem ou o raio de caminhada.</div>`;})()}
+ ${(()=>{const k=scnMinFleet(X),mx=num(c.maxRideMin)||0;return k?`<div class="note ok">Frota mínima: <b>${k} veículo${k>1?'s':''}</b> — até ${X.cap} passageiros cada${X.pct<100?` (meta de ${X.pct}% de ${X.capV} lugares)`:''}${X.lim?` e até ${nf(X.lim,0)} min a bordo (teto rígido ${nf(mx,0)} min − margem ${nf(mx-X.lim,0)} min = alvo ${nf(X.lim,0)} min)`:''}.</div>`:`<div class="note bad">Nenhum cenário respeita ao mesmo tempo a lotação (${X.cap}) e o tempo-alvo${X.lim?' ('+dur(X.lim)+')':''}. Escolha mais veículos em “Veículos”, aumente a margem ou o raio de caminhada.</div>`;})()}
   ${X.ctx.warn?`<div class="note warn">${esc(X.ctx.warn)}</div>`:''}
  <div class="note info small">Tempo = roteador${adj!==1?' × ajuste de '+(adj>1?'+':'')+nf((adj-1)*100,0)+'%':' (sem ajuste)'} + ${nf(X.ctx.dwell,1)} min por parada. Na operação real o tempo é maior? <button class="sm" data-act="calibrate">⏱ Calibrar tempos</button> com a telemetria (MOBS2) — vale para todas as rotas e cenários.</div>
  <details class="small" style="margin-top:8px"><summary class="muted" style="cursor:pointer">Como os cenários são montados (métodos)</summary><ul class="muted" style="margin:6px 0 0;padding-left:18px;line-height:1.55">
@@ -1625,7 +1637,7 @@ function renderScenarios(){const X=SCN;if(!X)return;const rows=X.rows,lim=X.lim,
  <li><b>Recomendado</b>: menor “custo em minutos” = tempo da rota + ocioso em minutos × ${nf(0.5+X.ctx.lam,1)} + 20% do tempo médio a bordo + ${SCN_WARN_MIN} min por trecho com alerta, entre os que respeitam o tempo máximo a bordo.</li>
  <li>Em verde, o melhor valor de cada coluna entre as alternativas. “Voltas por segurança” = km a mais por atender pelo lado da porta e por contornar em vez de fazer retorno (ajuste em Rota → Segurança do embarque).</li></ul></details>`;
  dialog('🎯 Cenários de otimização — '+X.r.name,h,[['Fechar',null]]);$('dlg').classList.add('wide');}
-async function rerunScenarios(){const lim=num($('scnLim')?.value),R=num($('scnR')?.value),cap=num($('scnCap')?.value),iw=num($('scnIw')?.value),veh=num($('scnVeh')?.value),tr=$('scnTrace')?.checked;if(lim>=0)S.cfg.maxRideMin=clamp(Math.round(lim),0,300);const mg=$('scnMg')?.value;if(mg!=null&&mg.trim()!=='')S.cfg.rideMargin=clamp(Math.round(num(mg)||0),0,60);if(R)S.cfg.radius=clamp(Math.round(R),50,1500);if(cap)S.cfg.capacity=clamp(Math.round(cap),1,120);if([0,0.5,1,1.5].includes(iw))S.cfg.idleWeight=iw;if(tr!=null)S.cfg.scnTrace=!!tr;const dw=$('scnDw')?.value;if(dw!=null&&dw.trim()!==''){const v=clamp(num(dw)||0,0,15),r=SCN?.r;if(r&&r.sched?.dwell!=null)r.sched.dwell=v;else S.cfg.dwell=v;}scheduleSave();$('dlg').close();renderTab();await openScenarios({veh:veh||0,go:true});}
+async function rerunScenarios(){const lim=num($('scnLim')?.value),R=num($('scnR')?.value),cap=num($('scnCap')?.value),iw=num($('scnIw')?.value),veh=num($('scnVeh')?.value),tr=$('scnTrace')?.checked;if(lim>=0)S.cfg.maxRideMin=clamp(Math.round(lim),0,300);const mg=$('scnMg')?.value;if(mg!=null&&mg.trim()!=='')S.cfg.rideMargin=clamp(Math.round(num(mg)||0),0,60);if(R)S.cfg.radius=clamp(Math.round(R),50,1500);if(cap)S.cfg.capacity=clamp(Math.round(cap),1,120);const ld=num($('scnLoad')?.value);if(ld)S.cfg.loadTargetPct=clamp(Math.round(ld),50,100);if([0,0.5,1,1.5].includes(iw))S.cfg.idleWeight=iw;if(tr!=null)S.cfg.scnTrace=!!tr;const dw=$('scnDw')?.value;if(dw!=null&&dw.trim()!==''){const v=clamp(num(dw)||0,0,15),r=SCN?.r;if(r&&r.sched?.dwell!=null)r.sched.dwell=v;else S.cfg.dwell=v;}scheduleSave();$('dlg').close();renderTab();await openScenarios({veh:veh||0,go:true,scope:SCN?.scope||''});}
 function addrSubset(src,stops){const ids=new Set(stops.flatMap(s=>(s.pax||[]).map(p=>p.sid).filter(Boolean)));if(!ids.size)return null;const sub=src.filter(a=>ids.has(a.id));return sub.length?clone(sub):null;}
 /* ---------- comparar com a rota planejada à mão (KML/KMZ do My Maps) ---------- */
 function scnManualPick(){const fi=document.createElement('input');fi.type='file';fi.accept='.kml,.kmz,.zip';fi.onchange=()=>{const f=fi.files[0];if(f)scnManualLoad(f);};fi.click();}
@@ -1642,15 +1654,39 @@ async function scnManualLoad(file){const X=SCN,r=X?.r;if(!r||!S.routes.includes(
  X.rows=X.rows.filter(x=>x.id!=='manual');X.rows.push(row);X.manual=row;scnRecommend(X);renderScenarios();
  const rec=X.rows.find(x=>x.rec),d=rec&&rec!==row?row.m.score-kOf(rec).score:0;toast('Sua rota medida no traçado: '+dur(row.m.routeMin)+' · '+nf(row.m.kmOp)+' km operacionais.'+(rec&&rec!==row?' O recomendado fica '+(d>=0?dur(d)+' melhor':dur(-d)+' pior')+' no custo em minutos.':' Ela é a melhor entre os cenários.'),'ok',10000);}
 /* ---------- aplicar ---------- */
-async function applyScenario(id){const X=SCN,row=X?.rows.find(x=>x.id===id);if(!row)return;const r=X.r;if(!S.routes.includes(r)){toast('A rota deste cenário não existe mais.','warn');return;}if(stopsSig(r)!==X.sig){toast('A rota mudou depois do cálculo dos cenários — recalcule antes de aplicar.','warn');return;}$('dlg').close();
- const pend=r.stops.filter(s=>s.pending||!validLL(s)),before=kOf(X.rows[0]),useCalc=(n,t)=>{if(t?.calc&&routeSig(n)===t.calc.sig){n.calc=clone(t.calc);return true;}return false;};
+async function applyScenario(id){const X=SCN,row=X?.rows.find(x=>x.id===id);if(!row){toast('Não apliquei: este cenário não está mais na tela — abra os Cenários de novo.','warn',9000);return;}const r=X.r;if(!scnHas(r)){toast('Não apliquei: a rota deste cenário não existe mais.','warn',9000);return;}if(stopsSig(r)!==X.sig){toast('Não apliquei: a rota mudou depois do cálculo dos cenários — abra os Cenários de novo.','warn',9000);return;}
+ const lk=LIVE.on?(r._atend?r._atend.ids:[r.id]).map(lockBy).find(Boolean):'';if(lk){toast('🔒 Não apliquei: '+(r._atend?'um dos veículos do atendimento':'esta rota')+' está em edição por '+lk+'.','warn',9000);return;}$('dlg').close();if(r._atend)return applyAtend(X,row);try{
+ const pend=r.stops.filter(s=>s.pending||!validLL(s)),nb=r.stops.length-pend.length,before=kOf(X.rows[0]),useCalc=(n,t)=>{if(t?.calc&&routeSig(n)===t.calc.sig){n.calc=clone(t.calc);return true;}return false;};
  if(row.split){const base=row.from,addrSrc=base.cons?base.src:(r.addrStops||null);const created=row.veh.map((v,i)=>{const n=clone(r);Object.assign(n,{id:uid('r'),name:r.name+' · Veículo '+(i+1),group:r.group||r.name,stops:(v.t?v.t.stops:v.list).map(s=>clone(s)),legs:{},calc:null,lockFirst:false,lockLast:false,_lastOpt:null});const sub=addrSrc?addrSubset(addrSrc,v.list):null;if(sub){n.addrStops=sub;n.pointMode='grouped';}else{delete n.addrStops;if(base.cons)n.pointMode='grouped';}if(n.plan)n.plan={...n.plan,veh:i+1,nveh:row.veh.length};useCalc(n,v.t);return n;});
   const nPin=intelVehPins(created);toPlan(),S.routes.push(...created);S.cur=S.routes.indexOf(created[0]);SCN=null;toast((nPin?'🧠 '+nPin+' passageiro(s) foram para o veículo de costume. ':'')+'Criadas '+created.length+' rotas (a original foi mantida). Tempo por veículo: '+row.veh.map(v=>dur(kOf(v).routeMin)).join(' / ')+'.','ok',9000);changed({fit:true});
   for(const n of created){if(!n.calc)await runRecalc(n,true);const w=await computeWalks(n,{quiet:true,reassign:true,fix:true});if(w&&(w.moved||w.added))await runRecalc(n,true);}if(cur()===created[0])fitRoute();for(const n of created)if(n.stops.some(s=>s.needName))await nameNewStops(n);return;}
  pushUndo('Cenário: '+row.name,r);const T=row.t;
- if(row.cons||row.manual){if(row.cons)r.addrStops=row.src;else if(!r.addrStops)r.addrStops=clone(r.stops.filter(s=>!s.pending&&validLL(s)));r.stops=[...(T?T.stops.map(s=>clone(s)):row.list),...(row.keep||[]).map(clone)];r.pointMode='grouped';r.lockFirst=false;r.lockLast=false;r.legs={};}else r.stops=[...(T?T.stops.map(s=>clone(s)):row.list),...pend];
+ if(row.cons||row.manual){if(row.cons)r.addrStops=row.src;else if(!r.addrStops)r.addrStops=clone(r.stops.filter(s=>!s.pending&&validLL(s)));r.stops=[...(T?T.stops.map(s=>clone(s)):row.list),...(row.keep||[]).map(clone),...pend.filter(p=>!(row.keep||[]).some(k=>k.id===p.id)).map(clone)];r.pointMode='grouped';   /* pendentes (Limbo) não somem */r.lockFirst=false;r.lockLast=false;r.legs={};}else r.stops=[...(T?T.stops.map(s=>clone(s)):row.list),...pend];
  const got=useCalc(r,T);r._lastOpt={name:row.name,before,after:kOf(row),warn:X.ctx.warn,at:Date.now()};SCN=null;
- toast('Cenário “'+row.name+'” aplicado. '+(row.m?'Medido no traçado: ':'Estimativa: ')+kpiTxt(kOf(row))+'.'+(got?'':' Traçando pelas vias…'),'ok',8000);changed({recalc:!got,force:!got,fit:!!(row.cons||row.manual)});if(row.cons&&r.stops.some(s=>s.needName))nameNewStops(r);if(row.cons)computeWalks(r,{reassign:true,fix:true}).then(w=>walkToast(w));}
+ changed({recalc:false,fit:!!(row.cons||row.manual)});
+ if(!got){toast('Cenário “'+row.name+'” aplicado — traçando pelas vias…','ok',5000);await runRecalc(r,true);}   /* traça mesmo com “retraçar sozinho” desligado */
+ if(row.cons&&r.stops.some(s=>s.needName))await nameNewStops(r);if(row.cons){const w=await computeWalks(r,{reassign:true,fix:true});walkToast(w);if(w&&(w.moved||w.added))await runRecalc(r,true);}
+ const au=scnAudit(r,X,before,nb,r.stops.filter(s=>s.pending||!validLL(s)).length);r._lastOpt={...r._lastOpt,audit:au};scheduleSave();renderAll();toast('✓ Cenário “'+row.name+'” aplicado. '+au,'ok',15000);
+ }catch(e){console.error(e);toast('Não consegui aplicar o cenário: '+e.message,'bad',12000);}}
+/* resumo do que mudou, medido no traçado */
+function scnAudit(r,X,before,nb,np){const t=totals(r),m=r.calc&&!isStale(r)?measureRoute(r,X.ctx.lam):null,na=r.stops.filter(s=>!s.pending&&validLL(s)).length;
+ return 'Paradas '+nb+' → '+na+(m?' · 1º passageiro a bordo '+dur(m.maxRide)+' · rota '+dur(m.routeMin):' · traçado ainda não concluído')+(before?.maxRide!=null&&m?' (antes '+dur(before.maxRide)+' a bordo)':'')+' · '+nf(t.kmOp)+' km operacional + '+nf(t.kmIdle)+' km ocioso'+(np?' · '+np+' passageiro(s) pendente(s) no Limbo':'')+(m&&X.lim&&m.maxRide>X.lim+0.5?' · ⚠ acima do alvo de '+nf(X.lim,0)+' min':'')+'.';}
+/* “Todo o atendimento”: substitui os veículos do mesmo sentido (um ↶ Desfazer volta tudo); pendentes ficam no Veículo 1 */
+async function applyAtend(X,row){const V=X.r,I=V._atend,A=S.atends?.[I.aid];
+ try{const old=I.ids.map(id=>S.routes.find(x=>x.id===id)),groups=row.split?row.veh.map(v=>({list:v.list,t:v.t})):[{list:row.list,t:row.t}];
+  const base=row.split?row.from:row,addrSrc=base.cons?base.src:(V.addrStops||null),pend=V.stops.filter(s=>s.pending||!validLL(s)),nb=V.stops.length-pend.length;
+  pushUndoAll('Cenário no atendimento: '+row.name);
+  const created=groups.map((g,i)=>{const o=old[i]||old[0],n=clone(o);Object.assign(n,{id:old[i]?.id||uid('r'),name:old[i]?.name||(/Veículo \d+/.test(o.name)?String(o.name).replace(/Veículo \d+/,'Veículo '+(i+1)):(A?.name||o.name)+' · Veículo '+(i+1)),stops:(g.t?g.t.stops:g.list).map(s=>clone(s)),legs:{},calc:null,lockFirst:false,lockLast:false,_lastOpt:null,plan:{...(o.plan||{}),aid:I.aid,veh:i+1,nveh:groups.length}});
+   const sub=addrSrc?addrSubset(addrSrc,g.list):null;if(sub){n.addrStops=sub;n.pointMode='grouped';}else delete n.addrStops;if(g.t?.calc&&routeSig(n)===g.t.calc.sig)n.calc=clone(g.t.calc);return n;});
+  if(pend.length)created[0].stops.push(...pend.map(s=>clone(s)));
+  const at=S.routes.findIndex(x=>I.ids.includes(x.id));S.routes=S.routes.filter(x=>!I.ids.includes(x.id));S.routes.splice(Math.max(0,at),0,...created);
+  if(A){A.nveh=Math.max(groups.length,S.routes.filter(x=>x.plan?.aid===I.aid&&x.dir!==I.dir).length);A.updated=nowIso();}
+  S.cur=S.routes.indexOf(created[0]);SCN=null;changed({recalc:false,fit:true});
+  for(const n of created)if(!n.calc||isStale(n))await runRecalc(n,true);
+  const tt=created.map(totals),ms=created.map(n=>n.calc&&!isStale(n)?measureRoute(n,X.ctx.lam):null),na=created.reduce((a,n)=>a+n.stops.filter(s=>!s.pending&&validLL(s)).length,0);
+  const au=old.length+' → '+created.length+' veículo(s) · paradas '+nb+' → '+na+' · a bordo: '+ms.map((m,i)=>'V'+(i+1)+' '+(m?dur(m.maxRide):'—')).join(' / ')+' · lotação: '+created.map(paxCount).join(' / ')+' · '+nf(tt.reduce((a,t)=>a+t.kmOp,0))+' km operacional + '+nf(tt.reduce((a,t)=>a+t.kmIdle,0))+' km ocioso'+(pend.length?' · '+pend.length+' pendente(s) no Veículo 1 (Limbo)':'')+'.';
+  created[0]._lastOpt={name:row.name,at:Date.now(),audit:au};scheduleSave();renderAll();toast('✓ Atendimento reorganizado (“'+row.name+'”). '+au+' Para voltar: ↶ Desfazer.','ok',16000);}
+ catch(e){console.error(e);toast('Não consegui aplicar no atendimento: '+e.message,'bad',12000);}}
 
 /* ===================== 2.9 — métodos de roteirização de fretamento =====================
  Usados nos Cenários (paradas já definidas) e no assistente de importação (endereços dos passageiros):
@@ -2127,7 +2163,7 @@ function unpinPax(){const x=PAXSEL,r=x&&S.routes.find(q=>q.id===x.rid);if(!r)ret
 function cleanPins(r){const ids=new Set(r.stops.map(s=>s.id));for(const s of r.stops)for(const p of s.pax||[])if(p.fixed&&(!ids.has(p.fixed)||p.fixed!==s.id))delete p.fixed;}
 
 /* ===================== Importação (KML, KMZ, ZIP, CSV, XLSX, backups) ===================== */
-const norm=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
+const norm=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
 const FIELD_RULES={person:[/^(nome do |nome )?(colaborador|funcionario|passageiro)s?$/,/colaborador|funcionario|passageiro/,/^nome( completo)?$/],street:[/^logradouro$/,/^rua$/,/^street( address)?$/,/logradouro/],number:[/^(numero|n|no|n°|nº|num|nro)\.?$/],bairro:[/^bairro$/,/bairro/,/neighbou?rhood|suburb/],addr:[/^endereco( completo| original)?$/,/^endereco/,/^address$/,/endereco/],ref:[/^referencias?( fornecidas)?$/,/^ponto de referencia$/,/^referencia/],comp:[/^complemento$/,/^unit$/],cep:[/^cep$/,/zip|postal/],lat:[/^(lat|latitude)$/],lon:[/^(lon|lng|long|longitude)$/],point:[/^(nome do ponto|ponto|parada|ponto de embarque)$/],city:[/^(cidade|municipio)$/,/cidade|municipio|^city$/],uf:[/^(uf|estado|state)$/],mat:[/^(matricula|registro|re|chapa|codigo|cod|id)$/,/matricula/],group:[/^(turno|rota|linha|escala|horario|setor|turma|onibus|veiculo)$/]};
 function detectFields(keys){const used=new Set(),m={};for(const[f,rules]of Object.entries(FIELD_RULES)){for(const re of rules){const k=keys.find(k=>!used.has(k)&&re.test(norm(k)));if(k){m[f]=k;used.add(k);break;}}}return m;}
 function parseKml(text){const d=new DOMParser().parseFromString(text,'text/xml');if(d.getElementsByTagName('parsererror').length)throw new Error('KML inválido');const NS=(el,n)=>[...el.getElementsByTagNameNS('*',n)];const kid=(el,n)=>el&&[...el.children].find(c=>c.localName===n);const txt=(el,n)=>(kid(el,n)?.textContent||'').trim();
@@ -2255,7 +2291,7 @@ const UF_NAME={AC:'Acre',AL:'Alagoas',AP:'Amapá',AM:'Amazonas',BA:'Bahia',CE:'C
 const GEO_HTTP=new Map(),GEO_DOWN={};
 const encU=encodeURIComponent,cepDigits=c=>String(c||'').replace(/\D/g,''),fmtCep=d=>d.length===8?d.slice(0,5)+'-'+d.slice(5):d;
 /* fontes gratuitas: dá para desligar cada uma em ⚙ Serviços; o uso é contado por dia */
-const geoSrcId=url=>url.includes('viacep')?'viacep':url.includes('awesomeapi')?'awesome':url.includes('photon')?'photon':url.includes('nominatim')?'nominatim':'outro';
+const geoSrcId=url=>url.includes('viacep')?'viacep':url.includes('brasilapi')?'brasilapi':url.includes('awesomeapi')?'awesome':url.includes('photon')?'photon':url.includes('nominatim')?'nominatim':'outro';
 const geoSrcOn=kind=>kind==='cep'?PROV.geo.cep!==false:kind==='photon'?PROV.geo.photon!==false:kind==='nominatim'?nomOn():true;
 async function geoJSON(kind,gap,url){if(!geoSrcOn(kind))return null;if(kind==='nominatim')url=nomUrl(url);if(GEO_HTTP.has(url))return GEO_HTTP.get(url);if(GEO_DOWN[kind]>Date.now())return null;let j=null;
  try{j=await queued(kind,gap,()=>fetchJSON(url,{},15000));useAdd(geoSrcId(url));}catch(e){if(e.status)useAdd(geoSrcId(url));if(!e.status){GEO_DOWN[kind]=Date.now()+120000;return null;}j=null;}
@@ -2303,9 +2339,24 @@ async function srcPhoton(q,ctx){let url='https://photon.komoot.io/api/?limit=6&q
  return(j?.features||[]).map(f=>{const p=f.properties||{},c=f.geometry?.coordinates||[];const poi=p.type==='house'&&!!p.name&&p.osm_key!=='highway'&&p.osm_key!=='place';return{lat:c[1],lon:c[0],type:p.type,poi,road:p.street||(p.type==='street'?p.name:''),house:p.housenumber||'',district:p.district||p.locality||'',name:p.name||'',label:[p.name&&p.name!==p.street?p.name:null,p.street?p.street+(p.housenumber?' '+p.housenumber:''):p.housenumber,p.district,p.city].filter(Boolean).join(', ')};}).filter(x=>validLL(x)&&inCity(ctx,x));}
 async function srcNomStruct(street,a,ctx){const url=NOMINATIM+'/search?format=jsonv2&addressdetails=1&limit=5&countrycodes=br&accept-language=pt-BR'+(ctx.bbox?'&viewbox='+ctx.bbox.join(',')+'&bounded=1':'')+'&street='+encU((a.number&&a.number!=='s/n'?a.number+' ':'')+street)+'&city='+encU(ctx.city)+'&state='+encU(UF_NAME[ctx.uf]||ctx.uf)+'&country=Brasil';return await geoJSON('nominatim',1100,url)||[];}
 async function srcRuaCidade(st,ctx){const q=st+', '+ctx.city+', '+ctx.uf;const[nm,ph]=await Promise.all([geoJSON('nominatim',1100,NOMINATIM+'/search?format=jsonv2&addressdetails=1&limit=5&countrycodes=br&accept-language=pt-BR'+(ctx.bbox?'&viewbox='+ctx.bbox.join(',')+'&bounded=1':'')+'&q='+encU(q)),srcPhoton(q,ctx)]);return{nm:nm||[],ph:ph||[]};}
+/* 2.18.2 — BrasilAPI CEP v2: coordenada do CEP (às vezes vazia) + rua/bairro. Tipo próprio ('brasilapi'): se cair, não desliga Correios/Awesome. */
+async function srcBrasilCep(cep){const d=cepDigits(cep);if(d.length!==8)return null;const j=await geoJSON('brasilapi',250,'https://brasilapi.com.br/api/cep/v2/'+d);if(!j||!j.cep)return null;const c=j.location?.coordinates||{},ok=v=>v!=null&&v!==''&&isFinite(+v);
+ return{cep:d,street:j.street||'',bairro:j.neighborhood||'',city:j.city||'',uf:j.state||'',lat:ok(c.latitude)&&ok(c.longitude)?+c.latitude:null,lon:ok(c.latitude)&&ok(c.longitude)?+c.longitude:null};}
+/* 2.18.2 — normalizador de endereço brasileiro (função pura). brAddrVariants(rua) → até 3 formas distintas:
+   [por extenso, abreviada, original sem complementos]. Tira Bloco/Apto/Casa/Fundos/Lote/Qd e “Próx. a/Perto de/Em frente…”. */
+/*BRN-INI*/
+const BR_ABR={r:'Rua',av:'Avenida',tv:'Travessa',trav:'Travessa',al:'Alameda',pc:'Praça',pca:'Praça',rod:'Rodovia',estr:'Estrada',ver:'Vereador',dr:'Doutor',dra:'Doutora',pres:'Presidente',prof:'Professor',profa:'Professora',cel:'Coronel',sto:'Santo',sta:'Santa',eng:'Engenheiro',gov:'Governador',dep:'Deputado',sen:'Senador',cap:'Capitão',mons:'Monsenhor',pe:'Padre'};
+const BR_AMB=new Set(['r','av','tv','pc','al','pe','cap','dep','sen','gov']); /* curtas/ambíguas: só expande com ponto ou como 1ª palavra */
+const BR_SHORT={rua:'R.',avenida:'Av.',travessa:'Tv.',alameda:'Al.',praca:'Pç.',vereador:'Ver.',doutor:'Dr.',doutora:'Dra.',presidente:'Pres.',professor:'Prof.',professora:'Profa.',coronel:'Cel.',santo:'Sto.',santa:'Sta.'};
+function brAddrVariants(s){let t=String(s||'').replace(/\s+/g,' ').trim();if(!t)return[];
+ t=t.replace(/[,;(–-]?\s*\b(?:pr[óo]x(?:imo)?\.?|perto|em frente|ao lado)\s+.*$/i,'').replace(/[,\s]+\b(?:bloco|bl|apto?|apt|apartamento|casa|sala|lote|lt|quadra|qd)\b\.?\s*(?:n[º°o.]*\s*)?(?:\d[\w-]*|[a-z])(?=[\s,]|$)/gi,'').replace(/[,\s]+fundos\b\.?/gi,'').replace(/[\s,;\-–(]+$/,'').trim();if(!t)return[];
+ const full=t.replace(/\bn\.?\s*sra?\b\.?/gi,'Nossa Senhora').split(' ').map((x,i)=>{const k=norm(x.replace(/\./g,'')),e=BR_ABR[k];return e&&(x.endsWith('.')||i===0||!BR_AMB.has(k))?e:x;}).join(' ');
+ const short=full.replace(/Nossa Senhora/gi,'N. Sra.').split(' ').map(x=>BR_SHORT[norm(x)]||x).join(' ');
+ const seen=new Set();return[full,short,t].filter(x=>{const k=norm(x).replace(/[^a-z0-9]/g,'');if(seen.has(k))return false;seen.add(k);return true;});}
+/*BRN-FIM*/
 /* ---------- combinação ---------- */
 const GEO_RANK={numero:6,base:5,local:5,cep:4,rua:3,'base-rua':2.5,bairro:1};
-async function geocodeMulti(a,o={}){const ctx=await cityCtx(a.city,a.uf);
+async function geocodeMulti(a,o={}){const ctx=await cityCtx(a.city,a.uf);const SV0=a.street?brAddrVariants(a.street):[];if(SV0[0])a={...a,street:SV0[0]};
  if(a.rural){if(!a.place)return{q:'none',cands:[]};const T=streetToks(a.place),C=[];for(const x of await srcPhoton(a.place+', '+ctx.city,ctx)){const sim=streetSim(T,streetToks(x.name||''));if(sim>=0.5&&!C.some(c=>distM(c,x)<25))C.push({q:'local',lat:+(+x.lat).toFixed(6),lon:+(+x.lon).toFixed(6),src:'Photon (OpenStreetMap)',label:(x.label||x.name)+' · zona rural, confira',sim});}return pickGeo(C);}const T=streetToks(a.street||''),nb=norm(a.bairro||''),n=+cepDigits(a.number)||0,C=[];
  const add=c=>{if(c&&validLL(c)&&inCity(ctx,c)&&!C.some(x=>x.q===c.q&&distM(x,c)<25))C.push({...c,lat:+(+c.lat).toFixed(6),lon:+(+c.lon).toFixed(6)});};
  const bairroOk=s=>{const x=norm(s||'');return !!(nb&&x&&(x.includes(nb)||nb.includes(x)));};
@@ -2314,6 +2365,7 @@ async function geocodeMulti(a,o={}){const ctx=await cityCtx(a.city,a.uf);
  if(geoKeyGet()&&(a.street||a.bairro)){for(const x of await srcPremium(qFull,ctx))add({q:x.num&&n?'numero':'rua',lat:x.lat,lon:x.lon,src:x.src,label:x.label});if(!o.all&&C.some(c=>c.q==='numero'))return pickGeo(C);}
  /* 2) CEP informado */
  let canon=null;if(cepDigits(a.cep).length===8){const aw=await srcAwesome(a.cep);if(aw&&aw.streetLevel){canon={street:aw.street,bairro:aw.bairro,cep:aw.cep};add({q:'cep',lat:aw.lat,lon:aw.lon,src:'CEP (Correios)',label:aw.street+' – '+aw.bairro+' · CEP '+fmtCep(aw.cep)});}else{const vc=await srcViaCep(a.cep);if(vc?.street)canon={street:vc.street,bairro:vc.bairro,cep:vc.cep};}}
+ if(cepDigits(a.cep).length===8&&!C.some(c=>c.q==='cep')){const br=await srcBrasilCep(a.cep);if(br){if(br.street&&!canon)canon={street:br.street,bairro:br.bairro,cep:br.cep};if(br.lat!=null&&(!br.city||norm(br.city)===norm(ctx.city)))add({q:'cep',lat:br.lat,lon:br.lon,src:'CEP (BrasilAPI)',label:(br.street||'CEP')+(br.bairro?' – '+br.bairro:'')+' · CEP '+fmtCep(br.cep)});}}
  /* 3) em paralelo: OpenStreetMap (rua e número), Photon (tolerante a erro) e Correios (rua pelo nome) */
  const[nom,ph,vs]=await Promise.all([a.street?srcNomStruct(a.street,a,ctx):[],(a.street||a.bairro)?srcPhoton(qFull,ctx):[],a.street&&!canon?srcViaStreet(a,ctx):null]);
  const takeNom=(res,how)=>{for(const r of res||[]){const ad=r.address||{},road=ad.road||ad.pedestrian||ad.residential||'';const rs=road?streetSim(T,streetToks(road)):0.5;if(T.length&&rs<0.5)continue;const sub=ad.suburb||ad.neighbourhood||ad.quarter||ad.city_district||'';const num=!!(ad.house_number&&n&&+cepDigits(ad.house_number)===n);add({q:num?'numero':'rua',lat:+r.lat,lon:+r.lon,src:'OpenStreetMap'+how,label:r.display_name||'',bok:bairroOk(sub),sim:rs});}};
@@ -2324,10 +2376,12 @@ async function geocodeMulti(a,o={}){const ctx=await cityCtx(a.city,a.uf);
  if(canon?.street&&!C.some(c=>c.q==='numero')&&n&&streetSim(T,streetToks(canon.street))<1){takeNom(await srcNomStruct(canon.street,a,ctx),' (nome oficial)');}
  /* 4b) 2.18 — sem CEP e a rua não apareceu com o bairro: procura só a rua na cidade (sem bairro e número) → “Só a rua — conferir”,
     em vez de cair no centro do bairro. Rua com o mesmo nome longe (> 3 km) do bairro informado é descartada (homônima). */
- if(a.street&&cepDigits(a.cep).length!==8&&!C.some(c=>['numero','rua','cep','local','base'].includes(c.q))){const st=canon?.street||a.street,bc=a.bairro?bairroCentroid(a.bairro):null,near=c=>!bc||distM(bc,c)<=3000;
+ if(a.street&&!C.some(c=>['numero','rua','cep','local','base'].includes(c.q))){const bc=a.bairro?bairroCentroid(a.bairro):null,near=c=>!bc||distM(bc,c)<=3000;
+  for(const st of [...new Set([canon?.street,...SV0,a.street].filter(Boolean))].slice(0,3)){const n0=C.length;
   const R=await srcRuaCidade(st,ctx);
   for(const r of R.nm){const ad=r.address||{},road=ad.road||ad.pedestrian||ad.residential||'',rs=road?streetSim(T,streetToks(road)):0,c={lat:+r.lat,lon:+r.lon};if(rs<0.6||!near(c))continue;add({q:'rua',...c,src:'OpenStreetMap (só a rua na cidade)',label:(r.display_name||road)+' · bairro não confirmado',bok:bairroOk(ad.suburb||ad.neighbourhood||''),sim:rs});}
-  for(const x of R.ph){const rs=streetSim(T,streetToks(x.road||x.name||''));if(rs<0.6||x.poi||!near(x))continue;add({q:'rua',lat:x.lat,lon:x.lon,src:'Photon (só a rua na cidade)',label:(x.label||x.road)+' · bairro não confirmado',bok:bairroOk(x.district),sim:rs});}}
+  for(const x of R.ph){const rs=streetSim(T,streetToks(x.road||x.name||''));if(rs<0.6||x.poi||!near(x))continue;add({q:'rua',lat:x.lat,lon:x.lon,src:'Photon (só a rua na cidade)',label:(x.label||x.road)+' · bairro não confirmado',bok:bairroOk(x.district),sim:rs});}
+  if(C.length>n0)break;}}
  /* 5) base de pontos padrão e bairro */
  const ab=canon?{...a,street:canon.street||a.street,bairro:a.bairro||canon.bairro}:a,gz=gazMatch(ab);if(gz)add({...gz,src:'Base de pontos padrão'});
  if(!C.length){const bc=bairroCentroid(a.bairro||canon?.bairro);if(bc)add({...bc,src:'Base de pontos padrão'});else if(a.bairro){for(const x of await srcPhoton(a.bairro+', '+ctx.city,ctx))if(bairroOk(x.name||x.district)){add({q:'bairro',lat:x.lat,lon:x.lon,src:'Photon (OpenStreetMap)',label:'bairro '+(x.name||x.district)});break;}}}
@@ -2376,7 +2430,7 @@ function sheetStep1(){const W=SHEET;const nGroups=W.F.group?new Set(W.rows.map(r
 function sheetReadMap(){const W=SHEET;const F={};qsa('#dlgBody [data-smap]').forEach(s=>{if(s.value)F[s.dataset.smap]=s.value;});W.F=F;const c=$('shCity')?.value;if(c!=null)W.city=cleanText(c)||'Paracatu';const u=$('shUF')?.value;if(u)W.uf=u;geoKeyRead();const o=readPointOpts();W.pm=o.pm;W.radius=o.radius;}
 /* ---------- localização ---------- */
 const STREET_STOP=new Set(['rua','r','avenida','av','travessa','tv','trav','alameda','al','praca','pc','pca','rodovia','rod','estrada','estr','vereador','ver','vereadora','doutor','dr','doutora','dra','professor','prof','professora','profa','padre','pe','coronel','cel','capitao','cap','senador','sen','deputado','dep','governador','gov','presidente','pres','engenheiro','eng','monsenhor','mons','general','gen','de','da','do','das','dos','e','d']);
-const streetToks=s=>norm(s).replace(/[^a-z0-9 ]/g,' ').split(' ').filter(t=>t&&!STREET_STOP.has(t));
+const streetToks=s=>norm(s).replace(/\bn\.? ?sra?\b\.?/g,'nossa senhora').replace(/[^a-z0-9 ]/g,' ').replace(/\bsto\b/g,'santo').replace(/\bsta\b/g,'santa').split(' ').filter(t=>t&&!STREET_STOP.has(t));
 function streetSim(A,B){if(!A.length||!B.length)return 0;const[s,l]=A.length<=B.length?[A,B]:[B,A];let m=0;const used=new Set();for(const t of s){const k=l.findIndex((u,i)=>!used.has(i)&&(u===t||(t.length===1&&u[0]===t)||(u.length===1&&t[0]===u)||(t.length>=5&&u.length>=5&&(u.startsWith(t)||t.startsWith(u)))));if(k>=0){used.add(k);m++;}}return m/l.length;}
 let GAZ=null;
 function gazBuild(){if(GAZ&&GAZ.ver===BASE.ver)return GAZ;const list=[];for(const b of BASE.stops){if(isTerminalName(b.name))continue;const sp=splitName(b.name);if(!sp.street)continue;const nm=/n[º°o]\.?\s*(\d{1,5})/i.exec(b.name);list.push({toks:streetToks(sp.street),bairro:norm(sp.bairro),num:+(sp.number||nm?.[1]||0)||null,lat:b.lat,lon:b.lon,name:b.name});}GAZ={ver:BASE.ver,list};return GAZ;}
@@ -2404,7 +2458,9 @@ async function sheetGeocode(){const W=SHEET;W.stop=false;if(!Array.isArray(W.res
   W.res[i]=r;cnt[r.q]=(cnt[r.q]||0)+1;done++;paint();if(++fresh%GEO_CK===0)await ckpt();if(net&&GEO_DOWN.nominatim>Date.now()&&GEO_DOWN.photon>Date.now()&&GEO_DOWN.cep>Date.now()){net=false;toast('Sem conexão com os serviços de endereço: seguindo só com a base de pontos padrão.','warn',8000);}}
  await ckpt(true);sheetStep3();}
 /* chave opcional de geocodificação (fica só neste navegador) */
-function geoKeyHtml(){const g=geoKeyGet();return `<details class="sec" style="margin-top:10px"${g?' open':''}><summary><b>Fonte extra com chave própria (opcional)</b> <span class="small muted">— melhora a posição pelo número da casa</span></summary><div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap"><select id="shGeoProv"><option value="">Nenhuma (só fontes gratuitas)</option>${Object.entries(GEO_PROV).map(([k,p])=>`<option value="${k}" ${g?.prov===k?'selected':''}>${p.name}</option>`).join('')}</select><input id="shGeoKey" type="password" placeholder="cole aqui a chave da API" value="${esc(g?.key||'')}" style="flex:1;min-width:200px"></div><p class="muted small">Google, HERE, Mapbox, Geoapify, LocationIQ e OpenCage têm planos gratuitos com limite mensal; crie a chave no site do serviço. A chave fica guardada só neste navegador — não vai para backup, KML nem HTML exportado. Sem chave, o sistema usa Correios (ViaCEP), AwesomeAPI, OpenStreetMap e Photon. Cotas, uso do dia e fontes ligadas: <a href="#" data-act="providers">⚙ Serviços</a>.</p></details>`;}
+/* 2.18.2 — aviso objetivo quando não há chave do Geoapify (a ferramenta guarda a chave em KEYS.geoapify; não aparece se existir) */
+function geoapifyWarn(){return String(KEYS.geoapify||'').trim()?'':'<p class="small" style="margin:8px 0;padding:6px 8px;border-radius:6px;background:#fff7e0;border:1px solid #eda100">⚠ Sem a chave gratuita do Geoapify (3.000 consultas/dia), o número da casa em Paracatu fica menos preciso. <button class="sm" data-act="providers">Configurar em ⚙ Serviços</button></p>';}
+function geoKeyHtml(){const g=geoKeyGet();return geoapifyWarn()+`<details class="sec" style="margin-top:10px"${g?' open':''}><summary><b>Fonte extra com chave própria (opcional)</b> <span class="small muted">— melhora a posição pelo número da casa</span></summary><div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap"><select id="shGeoProv"><option value="">Nenhuma (só fontes gratuitas)</option>${Object.entries(GEO_PROV).map(([k,p])=>`<option value="${k}" ${g?.prov===k?'selected':''}>${p.name}</option>`).join('')}</select><input id="shGeoKey" type="password" placeholder="cole aqui a chave da API" value="${esc(g?.key||'')}" style="flex:1;min-width:200px"></div><p class="muted small">Google, HERE, Mapbox, Geoapify, LocationIQ e OpenCage têm planos gratuitos com limite mensal; crie a chave no site do serviço. A chave fica guardada só neste navegador — não vai para backup, KML nem HTML exportado. Sem chave, o sistema usa Correios (ViaCEP), AwesomeAPI, OpenStreetMap e Photon. Cotas, uso do dia e fontes ligadas: <a href="#" data-act="providers">⚙ Serviços</a>.</p></details>`;}
 function geoKeyRead(){const p=$('shGeoProv'),k=$('shGeoKey');if(!p||!k)return;const prov=p.value,key=k.value.trim();const cur0=geoKeyGet();if(!prov||!key){if(cur0&&!prov)geoKeySet(null);return;}if(!cur0||cur0.prov!==prov||cur0.key!==key){geoKeySet(prov,key);GEO_DOWN.prem=0;}}
 /* correção de uma linha na revisão: opções de todas as fontes ou endereço digitado */
 function sheetFix(i){const W=SHEET,d=sheetRec(W.rows[i]),a=sheetAddr(d),r=W.res[i]||{q:'none'};const txt=[a.street&&(a.street+(a.number?', '+a.number:'')),a.bairro,a.cep&&('CEP '+a.cep)].filter(Boolean).join(', ');
@@ -2417,7 +2473,7 @@ function sheetStep3(){const W=SHEET;const cnt={};W.res.forEach(r=>cnt[r.q]=(cnt[
  const rows=W.rows.map((row,i)=>{const d=sheetRec(row),a=sheetAddr(d),r=W.res[i]||{q:'none'};return `<tr><td class="r">${i+1}</td><td>${esc(g(d,'person')||'—')}</td><td>${esc(a.full||'—')}</td><td><span class="chip ${GEO_Q[r.q][1]}" title="${esc(r.label||'')}">${GEO_Q[r.q][0]}</span>${r.src?`<div class="small muted">${esc(r.src)}</div>`:''}</td><td class="r small muted">${r.lat!=null?nf(r.lat,5)+', '+nf(r.lon,5):''}</td><td><button class="sm" data-act="sheetFix" data-i="${i}" title="Ver as opções de todas as fontes ou corrigir o endereço">🔎</button></td></tr>`;}).join('');
  const nOk=W.res.filter(r=>r.lat!=null).length;
  dialog('Revisar endereços · '+esc(W.file),`<div class="row" style="flex-wrap:wrap;gap:6px;margin-bottom:8px">${Object.keys(GEO_Q).filter(q=>cnt[q]).map(q=>`<span class="chip ${GEO_Q[q][1]}">${cnt[q]} · ${GEO_Q[q][0]}</span>`).join('')}</div>
-  <p class="muted small"><b>${nOk}</b> de ${W.rows.length} no mapa. Os aproximados ficam marrons na rota para conferir e arrastar; os não localizados entram como pendentes (📍 para posicionar). No KML, os não localizados vão para a pasta “Não localizados” com o endereço.</p>
+  ${geoapifyWarn()}<p class="muted small"><b>${nOk}</b> de ${W.rows.length} no mapa. Os aproximados ficam marrons na rota para conferir e arrastar; os não localizados entram como pendentes (📍 para posicionar). No KML, os não localizados vão para a pasta “Não localizados” com o endereço.</p>
   <div class="scn-wrap" style="max-height:46vh;overflow:auto"><table class="t"><thead><tr><th class="r">#</th><th>Colaborador</th><th>Endereço</th><th>Localização</th><th class="r">Lat, Lon</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`,
   [['← Voltar',()=>{sheetStep1();return false;}],['Baixar CSV com coordenadas',()=>{sheetCsv();return false;}],['Baixar KML (My Maps)',()=>{sheetKml();return false;}],['Criar rota'+(W.F.group?'s':''),()=>{sheetCreate();}]]);$('dlg').classList.add('wide');}
 function sheetGroups(){const W=SHEET,gs=new Map();W.rows.forEach((row,i)=>{const d=sheetRec(row);const k=W.F.group?(d[W.F.group]||'(sem '+W.F.group+')'):'';if(!gs.has(k))gs.set(k,[]);gs.get(k).push(i);});return gs;}
@@ -2525,7 +2581,7 @@ const REPO_LOCAL={kind:'local',name:'Este navegador (IndexedDB)',
  async load(){const c=await IDB.get('catalog');return c&&c.kind==='rota-studio-base'?c:null;},
  async save(c){await IDB.set('catalog',c);},
  async putPhoto(id,data){await IDB.set('photo:'+id,data);},
- async getPhoto(id){return IDB.get('photo:'+id);},
+ async getPhoto(id){return(await IDB.get('photo:'+id))||photoRemote(id);},
  async delPhoto(id){return IDB.del('photo:'+id);}};
 let REPO=REPO_LOCAL;
 const catSave=debounce(async()=>{if(READONLY)return;try{await REPO.save(CAT);if(typeof syncNote==='function')syncNote();}catch(e){toast('⚠ A Base ativa não foi salva neste navegador ('+e.message+'). Baixe o pacote da base (Base → Dados).','bad',9000);}},500);
@@ -2615,6 +2671,14 @@ const VIST_RES={aprovado:['Aprovado','ok'],ressalva:['Aprovado com ressalva','wa
 /* onde cada foto da vistoria está no Drive: {id} (gravada pelo script) ou {l,n:[nomes possíveis]} em vistorias-seguranca/<l>/fotos */
 const inspRefsFor=(v,n)=>{const l=v.sst?.rota?.code||v.sst?.rota?.name||'',d=String(v.at||'').slice(0,10),c=CAT.points[v.pid]?.code||v.pid;return Array.from({length:n},(_,k)=>({l,n:[c+'_'+d+'_'+(k+1)+'.jpg',sstSlug(String(v.pid||v.key||'ponto'))+'_'+d+'_'+String(v.id||'').slice(-6)+'_'+(k+1)+'.jpg']}));};
 const inspRef=v=>{const n=(v.photos||[]).length;return Array.isArray(v.phRef)&&v.phRef.length===n?v.phRef:inspRefsFor(v,n);};
+/* foto de vistoria/acompanhamento que não está neste navegador (outro computador importou, ou versão web): onde ela está no Drive */
+function photoRef(id){for(const v of Object.values(CAT.insp||{})){const k=(v.photos||[]).indexOf(id);if(k>=0)return inspRef(v)[k]||null;}
+ for(const a of Object.values(CAT.acomps||{})){const st=a.stops||[],i=st.findIndex(s=>s.photo===id);if(i<0)continue;const k=st.filter(s=>s.photo).findIndex(s=>s.photo===id);if(a.fotosDrive?.[k])return{id:a.fotosDrive[k]};
+  const h=a.head||{};return{a:1,l:h.linha||'',n:[sstSlug([h.data,String(h.hIni||'').replace(':','h'),h.sentido,String(a.id||'').slice(-6)].filter(String).join('_'))+'_parada'+(i+1)+'.jpg']};}return null;}
+const PHOTO_MISS=new Map();
+async function photoRemote(id){if(!id||!liveUrl()||!navigator.onLine||Date.now()-(PHOTO_MISS.get(id)||0)<5*60e3)return null;const r=photoRef(id);if(!r){PHOTO_MISS.set(id,Date.now());return null;}
+ const q=r.id?'id='+encodeURIComponent(r.id):(r.a?'a=1&':'')+'l='+encodeURIComponent(r.l||'')+'&n='+encodeURIComponent((r.n||[]).join('|'));
+ const j=await liveGet('campo=foto&'+q).catch(()=>null);if(j?.ok&&typeof j.d==='string'&&j.d.startsWith('data:image')){IDB.set('photo:'+id,j.d).catch(()=>{});return j.d;}PHOTO_MISS.set(id,Date.now());return null;}
 function catInspAdd(o){const v={id:uid('vi'),pid:'',at:nowIso(),by:who(),result:'aprovado',checks:{},notes:'',pos:null,photos:[],src:'computador',...o};
  if(v.sst){const pv=catInspOf(v.pid).find(x=>x.sst&&x.id!==v.id),base=pv?(pv.ver?.length?pv.ver:[{v:1,by:pv.by||'',mat:pv.mat||'',at:pv.at}]):[];v.ver=[...base,{v:base.length+1,by:v.by||'',mat:v.mat||'',at:v.at}];if(pv){v.subst=pv.id;const nw=(v.photos||[]).length,nr=Array.isArray(v.phRef)&&v.phRef.length===nw?v.phRef:inspRefsFor(v,nw),pr=inspRef(pv);
   /* app 2.13.1: lista do que fica da versão anterior (o resto foi removido ou trocado pela foto editada) */
@@ -4943,7 +5007,7 @@ table.strip{border-collapse:collapse;width:100%}.strip th{font-size:12px;color:v
 /* roda no celular do passageiro (sem dependências além do Leaflet) */
 function portalRuntime(){var D=window.PORTAL,V=document.getElementById('view'),map=null,me=null;
  function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
- function norm(s){return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();}
+ function norm(s){return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();}
  function dec(s){var i=0,la=0,lo=0,o=[];while(i<s.length){for(var k=0;k<2;k++){var sh=0,r=0,b;do{b=s.charCodeAt(i++)-63;r|=(b&31)<<sh;sh+=5;}while(b>=32);var d=(r&1)?~(r>>1):(r>>1);if(k===0)la+=d;else lo+=d;}o.push([la/1e6,lo/1e6]);}return o;}
  function dm(a,b){var t=Math.PI/180,x=(b[0]-a[0])*t,y=(b[1]-a[1])*t,h=Math.sin(x/2)*Math.sin(x/2)+Math.cos(a[0]*t)*Math.cos(b[0]*t)*Math.sin(y/2)*Math.sin(y/2);return 12742000*Math.asin(Math.sqrt(h));}
  function fr(L){return D.F[L.f]||{c:'#0f3b5f',i:'#fff',n:''};}
@@ -5361,7 +5425,12 @@ function intelPatterns(){if(!CAT_READY)return;const G=new Map();
   const f=INTEL.fatos.find(x=>x.tipo==='padrao-linha'&&x.chave===k);if(!f||JSON.stringify(f.valor)!==JSON.stringify(val)||f.esquecido)intelLearn('padrao-linha',k,val,'Base ativa',{keepN:true});}
  for(const f of intelList('padrao-linha'))if(!G.has(f.chave)&&f.valor?.ativo!==false){f.valor={...f.valor,ativo:false};f.ultimo=nowIso();}}
 /* lê o arquivo da pasta, junta com o deste navegador e grava de volta (JSON + resumo .md) só se mudou */
-async function intelSync(){if(!SYNC.dir||SYNC.need||READONLY)return;try{intelPatterns();const dir=await SYNC.dir.getDirectoryHandle('inteligencia',{create:true});let disk=null;
+/* 2.18.2: com a base viva, a inteligência vem do servidor (inteligencia/inteligencia-rotas.json) e o que se aprende vai para lá — a versão web deixa de mostrar 0 */
+const intelSig=F=>hash36(JSON.stringify(F.map(f=>[f.tipo,String(f.chave),f.ultimo||'',+f.n||1,!!f.esquecido]).sort((a,b)=>(a[0]+'§'+a[1]).localeCompare(b[0]+'§'+b[1]))));
+async function intelLive(){if(!LIVE.on||LIVE.old||!liveUrl())return;const j=await liveGet('base=inteligencia');if(!j?.ok)return;const srv=intelNorm(j.dados);INTEL=intelMerge(INTEL,srv);intelIdx();
+ if(intelSig(INTEL.fatos)!==intelSig(srv.fatos)&&(can('plan')||can('base'))){const r=await livePost({acao:'inteligencia-gravar',fatos:INTEL.fatos});if(r?.ok&&r.dados){INTEL=intelMerge(INTEL,intelNorm(r.dados));intelIdx();}}
+ INTEL_AT=nowIso();IDB.set('intel',INTEL).catch(()=>{});}
+async function intelSync(){if(READONLY)return;try{intelPatterns();}catch(e){console.warn('inteligência',e);}await intelLive().catch(e=>console.warn('inteligência (servidor)',e));if(!SYNC.dir||SYNC.need)return;try{const dir=await SYNC.dir.getDirectoryHandle('inteligencia',{create:true});let disk=null;
  try{const fh=await dir.getFileHandle(INTEL_FILE);disk=intelNorm(JSON.parse(await(await fh.getFile()).text()));}catch(e){if(e?.name!=='NotFoundError'&&!(e instanceof SyntaxError))throw e;if(e instanceof SyntaxError){console.warn('inteligência: arquivo ilegível, não sobrescrevo');return;}}
  if(disk)INTEL=intelMerge(INTEL,disk);intelIdx();const h=hash36(JSON.stringify(INTEL.fatos)),dh=disk?hash36(JSON.stringify(intelMerge(disk,{fatos:[]}).fatos)):'';
  if(h!==dh&&h!==INTEL_H){INTEL.atualizado=nowIso();await syncPut(dir,INTEL_FILE,JSON.stringify(INTEL,null,1));await syncPut(dir,INTEL_MD,intelMd());}INTEL_H=h;INTEL_AT=nowIso();IDB.set('intel',INTEL).catch(()=>{});}catch(e){if(!syncLost(e))console.warn('inteligência',e);}}
@@ -5838,7 +5907,7 @@ function atendWizard(r,o={}){return new Promise(res=>{const A0=o.aid?S.atends[o.
  <div class="field"><span>Tipo</span><div class="seg" id="atKind">${['IDA','VOLTA','IDA/VOLTA'].map(k=>`<button type="button" data-k="${k}" class="${(A0?.kind||r.dir||'IDA')===k?'on':''}">${KIND_TXT[k]}</button>`).join('')}</div></div>
  <div class="grid2" style="margin-top:8px"><label class="field"><span id="atPlaceL">Destino</span><select id="atPlace">${S.places.map(p=>`<option value="${p.id}" ${place&&(place.placeId===p.id||distM(place,p)<5)?'selected':''}>${esc(p.name)}</option>`).join('')}${place&&!S.places.some(p=>place.placeId===p.id||distM(place,p)<5)?`<option value="__cur" selected>${esc(place.name||'Atual')}</option>`:''}</select></label>
  <div class="grid2" style="gap:6px"><label class="field" id="atTiF"><span>Chegada no destino</span><input id="atTi" type="time" value="${esc(A0?.timeIda||(r.dir==='IDA'&&r.sched?.time)||'07:00')}"></label><label class="field" id="atTvF"><span>Saída do destino</span><input id="atTv" type="time" value="${esc(A0?.timeVolta||(r.dir==='VOLTA'&&r.sched?.time)||'17:30')}"></label></div></div>
- <div class="grid2" style="margin-top:4px"><div class="grid2" style="gap:6px"><label class="field"><span>Veículo</span><select id="atVt">${Object.keys(NL_VT).map(t=>`<option ${t===vt0?'selected':''}>${t}</option>`).join('')}</select></label><label class="field"><span>Passageiros por veículo</span><input id="atCap" type="number" min="1" max="120" value="${cap0}"></label></div>
+ <div class="grid2" style="margin-top:4px"><div class="grid2" style="gap:6px"><label class="field"><span>Veículo</span><select id="atVt">${Object.keys(NL_VT).map(t=>`<option ${t===vt0?'selected':''}>${t}</option>`).join('')}</select></label><label class="field"><span>Passageiros por veículo</span><input id="atCap" type="number" min="1" max="120" value="${cap0}"></label><label class="field" title="Folga de lotação: com 90%, um ônibus de 42 lugares leva até 37"><span>Meta de lotação (%)</span><input id="atLoad" type="number" min="50" max="100" step="5" value="${num(S.cfg.loadTargetPct)||100}"><small id="atLoadH" class="muted"></small></label></div>
  <div class="grid2" style="gap:6px"><label class="field"><span>Quantidade de veículos</span><input id="atN" type="number" min="1" max="12" value="${A0?.nveh||Math.max(1,Math.ceil(pax/cap0))}"></label><label class="field"><span>Divisão</span><select id="atMeth"><option value="auto">Corredores até o destino (padrão)</option><option value="sweep" ${A0?.method==='sweep'?'selected':''}>Setores a partir do destino</option><option value="kmeans" ${A0?.method==='kmeans'?'selected':''}>Agrupamento geográfico</option></select></label></div></div>
  <div id="atMsg" class="note info" style="margin-top:8px"></div><div id="atPrev" class="atprev"></div>`;
  dialog((A0?'Reconfigurar':'Configurar')+' o atendimento',h,[[A0?'Cancelar':'Pular (manter como está)',null],['Criar atendimento',()=>atendCreate()]]);$('dlg').classList.add('wide');
@@ -5847,19 +5916,20 @@ function atendWizard(r,o={}){return new Promise(res=>{const A0=o.aid?S.atends[o.
  const body=$('dlgBody');body.addEventListener('input',atUpd);body.addEventListener('change',atUpd);
  body.addEventListener('click',e=>{const b=e.target.closest('#atKind button');if(b){qsa('#atKind button').forEach(x=>x.classList.toggle('on',x===b));atUpd();}if(e.target.id==='atUseFile'){$('atName').value=sug;atUpd();}if(e.target.dataset?.atn){$('atN').value=e.target.dataset.atn;atUpd();}});
  atUpd();});}
-function atRead(){const kind=document.querySelector('#atKind button.on')?.dataset.k||'IDA';return{name:cleanText($('atName').value),date:$('atDate').value,kind,place:$('atPlace').value,ti:$('atTi').value,tv:$('atTv').value,vt:$('atVt').value,cap:Math.round(num($('atCap').value)),n:Math.round(num($('atN').value)),meth:$('atMeth').value};}
+function atRead(){const kind=document.querySelector('#atKind button.on')?.dataset.k||'IDA';return{name:cleanText($('atName').value),date:$('atDate').value,kind,place:$('atPlace').value,ti:$('atTi').value,tv:$('atTv').value,vt:$('atVt').value,cap:Math.round(num($('atCap').value)),n:Math.round(num($('atN').value)),meth:$('atMeth').value,load:clamp(Math.round(num($('atLoad')?.value)||100),50,100)};}
 function atPartition(c){const X=AT,hub=atPlaceObj(c.place)||fleetHub(X.r),dir=c.kind==='VOLTA'?'VOLTA':'IDA';if(c.n<=1)return{groups:[X.geo],method:'one',loads:[atPax(X.geo)]};if(X.geo.length<c.n)return null;
- const P=c.meth==='corr'?corrPartition(X.geo,c.n,c.cap,hub,dir):c.meth==='sweep'?sweepPartition(X.geo,c.n,c.cap,hub,dir):c.meth==='kmeans'?kmeansPartition(X.geo,c.n,c.cap,hub,dir):bestPartition(X.geo,c.n,c.cap,hub,dir);return P;}
+ const P=c.meth==='corr'?corrPartition(X.geo,c.n,c.eff||c.cap,hub,dir):c.meth==='sweep'?sweepPartition(X.geo,c.n,c.eff||c.cap,hub,dir):c.meth==='kmeans'?kmeansPartition(X.geo,c.n,c.eff||c.cap,hub,dir):bestPartition(X.geo,c.n,c.eff||c.cap,hub,dir);return P;}
 function atPlaceObj(id){if(id==='__cur'){const r=AT?.r;return r?((r.dir==='VOLTA'?r.start:r.end)||null):null;}const p=S.places.find(x=>x.id===id);return p?{name:p.name,lat:p.lat,lon:p.lon,placeId:p.id}:null;}
 function atUpd(e){const X=AT;if(!X||!$('atName'))return;const c=atRead();if(e?.target?.id==='atVt'){const v=NL_VT[c.vt];if(v){$('atCap').value=v[2];c.cap=v[2];}}
+ c.eff=effCap(c.cap||1,c.load);if($('atLoadH'))$('atLoadH').textContent='→ até '+c.eff+' pass./veículo';
  const ida=c.kind!=='VOLTA',vol=c.kind!=='IDA';$('atPlaceL').textContent=c.kind==='IDA'?'Destino da IDA':c.kind==='VOLTA'?'Origem da VOLTA':'Destino da IDA / origem da VOLTA';$('atTiF').hidden=!ida;$('atTvF').hidden=!vol;
- const min=Math.max(1,Math.ceil(X.pax/Math.max(1,c.cap))),bad=[],warn=[],ok=[];
+ const min=Math.max(1,Math.ceil(X.pax/Math.max(1,c.eff))),bad=[],warn=[],ok=[];if(['atLoad','atCap','atVt'].includes(e?.target?.id)&&c.n!==min){$('atN').value=min;c.n=min;}
  if(c.name.length<3)bad.push(['atName','Dê um nome ao atendimento (ex.: cliente e data) — ele identifica as rotas, a divulgação e a Base ativa.']);
  if(!(c.cap>=1))bad.push(['atCap','Informe quantos passageiros cabem em cada veículo.']);
  if(!(c.n>=1))bad.push(['atN','Informe a quantidade de veículos.']);else if(c.n>Math.max(1,X.geo.length))bad.push(['atN','Há só '+X.geo.length+' endereço(s) com posição — não dá para dividir em '+c.n+' veículos.']);
  if(ida&&!c.ti)warn.push('Sem horário de chegada: os horários dos pontos ficam em branco até você informar.');if(vol&&!c.tv)warn.push('Sem horário de saída da VOLTA.');
  const R=NL_VT[c.vt];if(R&&c.cap&&(c.cap<R[0]||c.cap>R[1]))warn.push('Lotação de '+c.cap+' é incomum para '+c.vt.toLowerCase()+' ('+R[0]+'–'+R[1]+').');
- if(c.n>=1&&c.n<min)warn.push(X.pax+' passageiros não cabem em '+c.n+' veículo(s) de '+c.cap+' lugares — mínimo '+min+'. <button class="sm" type="button" data-atn="'+min+'">usar '+min+'</button>');
+ if(c.n>=1&&c.n<min)warn.push(X.pax+' passageiros não cabem em '+c.n+' veículo(s) de '+c.cap+' lugares'+(c.load<100?' com meta de '+c.load+'% (até '+c.eff+')':'')+' — mínimo '+min+'. <button class="sm" type="button" data-atn="'+min+'">usar '+min+'</button>');
  else if(c.n>min)ok.push(c.n+' veículos para '+X.pax+' passageiros (o mínimo seria '+min+') — use quando o tempo a bordo ou o horário pedir.');
  qsa('#dlgBody .bad').forEach(x=>x.classList.remove('bad'));bad.forEach(([id])=>$(id)?.classList.add('bad'));
  let P=null;if(!bad.length){P=atPartition(c);if(!P)bad.push(['atN','Não consegui dividir com esses números.']);}X.P=P;X.c=c;
@@ -5869,7 +5939,7 @@ function atUpd(e){const X=AT;if(!X||!$('atName'))return;const c=atRead();if(e?.t
  const btn=[...$('dlgFoot').children].at(-1);if(btn)btn.disabled=!!bad.length;}
 function atendCreate(){const X=AT;if(!X)return false;atUpd();const c=X.c,P=X.P;if(!P||!$('atName')||$('atMsg').classList.contains('bad'))return false;
  const r0=X.r,place=atPlaceObj(c.place),aid=X.aid||uid('a');S.atends=S.atends||{};
- const A={id:aid,name:c.name,kind:c.kind,date:c.date||'',dest:place?clone(place):null,timeIda:c.ti||'',timeVolta:c.tv||'',vt:c.vt,cap:c.cap,nveh:P.groups.length,method:P.method,created:S.atends[aid]?.created||nowIso(),updated:nowIso()};S.atends[aid]=A;S.cfg.capacity=c.cap;
+ const A={id:aid,name:c.name,kind:c.kind,date:c.date||'',dest:place?clone(place):null,timeIda:c.ti||'',timeVolta:c.tv||'',vt:c.vt,cap:c.cap,nveh:P.groups.length,method:P.method,created:S.atends[aid]?.created||nowIso(),updated:nowIso()};S.atends[aid]=A;S.cfg.capacity=c.cap;S.cfg.loadTargetPct=c.load||100;
  const pend=X.list.filter(s=>s.pending||!validLL(s)),mk=(dir,i,stops)=>{const n=newRoute(c.name+(A.nveh>1?' · Veículo '+(i+1):''),dir);n.group=c.name;n.plan={aid,veh:i+1,nveh:A.nveh};
    if(dir==='IDA'){n.end=place?clone(place):r0.end;n.start=null;n.sched={...n.sched,mode:'arrive',time:c.ti||''};}else{n.start=place?clone(place):r0.start||r0.end;n.end=null;n.sched={...n.sched,mode:'depart',time:c.tv||''};}
    n.stops=stops.map(s=>({...clone(s),id:uid('s')}));n.pointMode='addr';n.idleOut=r0.idleOut;n.idleBack=r0.idleBack;return n;};
@@ -6093,6 +6163,7 @@ const HELP=[
 <li>Confira as colunas: <b>Colaborador</b>, <b>Matrícula</b>, <b>Endereço completo</b> (ou rua, número, bairro e CEP separados), cidade, referência e, se houver, “Separar rotas por” (turno, rota).</li>
 <li><b>Sem CEP</b> (2.18): se a rua não aparece junto com o bairro, o sistema procura <b>só a rua na cidade</b> e marca <b>“Só a rua — conferir”</b>, em vez de jogar no centro do bairro. Rua com o mesmo nome a mais de 3 km do bairro informado é descartada. Endereços que antes ficaram em “Só o bairro” são procurados de novo.</li>
 <li>Escolha o destino (ex.: Portaria Planta II), o sentido e o horário, e clique para localizar.</li>
+<li><b>Endereço mais bem entendido</b> (2.18.2): antes de consultar, o sistema normaliza o endereço brasileiro — expande/alterna abreviações (R./Rua, Av., Ver., Dr., Pres., Prof., Cel., Sto./Sta., N. Sra., Tv., Al., Pç.) e tira complementos que atrapalham (Bloco, Apto, Casa, Fundos, Lote, Qd, “Próx. a…”, “Perto de…”), tentando no máximo 3 formas da rua. Com CEP, a <b>BrasilAPI</b> entra como fonte extra (coordenada do CEP, ou rua e bairro oficiais para reforçar a busca; se ela estiver fora do ar, as outras fontes seguem normalmente). Sem a chave gratuita do <b>Geoapify</b> (3.000 consultas/dia), a tela mostra um aviso com o atalho para ⚙ Serviços: sem ela, o número da casa fica menos preciso.</li>
 <li>O sistema consulta, nesta ordem: coordenada da planilha → chave própria (se houver) → CEP nos Correios → OpenStreetMap rua e número → busca tolerante a erro → base de pontos padrão → bairro.</li>
 <li>Na <b>revisão</b>, cada linha mostra a qualidade: <i>Rua e número</i> (ok), <i>base/CEP</i> (bom), <i>Só a rua</i> e <i>Só o bairro</i> (conferir) e <i>Não localizado</i>. Use 🔎 para corrigir uma linha ou posicione depois no mapa (📍).</li>
 <li>Se o mesmo endereço veio escrito de jeitos diferentes (ex.: Padre Bené × Padre Bener, mesmo número), o sistema pergunta se pode <b>unificar</b> — veja “Endereços repetidos”.</li></ol>
@@ -6141,6 +6212,7 @@ const HELP=[
 <p><b>🎯 Cenários de otimização</b> compara lado a lado várias formas de fazer a mesma rota. Desde a 2.9 <b>cada cenário é traçado pelas vias</b> (as mesmas regras do 🧭 Recalcular: sem meia-volta, lado da porta, cercas, rede de ônibus) e a tabela mostra os <b>valores medidos</b> — selo <b>✓ traçado</b>. Antes, os números vinham de uma matriz de distâncias e o tempo real saía maior.</p>
 <p><b>Antes de otimizar</b> (2.16) o sistema pergunta: <b>tempo máximo a bordo</b> (contrato, padrão 60 min), <b>margem para o trânsito</b> (10 min), <b>lotação</b> (42) e <b>caminhada</b> (700 m). Os valores ficam lembrados. Nenhum veículo passa do <b>tempo-alvo</b> (máximo − margem = 50 min) nem da lotação, e o resultado mostra a <b>frota mínima</b>. A divisão em veículos não junta corredores opostos (lados diferentes do destino) no mesmo veículo e pode ir além de 6 veículos.</p>
 <p><b>Lote grande</b> (2.16.2): com mais de 60 endereços e mais passageiros do que a lotação de um veículo, a rota única é impossível. Por isso os Cenários vão <b>direto à divisão em veículos</b>, sem ordenar todos os endereços como uma rota só (era isso que travava a tela). A divisão usa distâncias estimadas, e cada veículo é traçado pelas vias em seguida (com barra de progresso). 1.000 endereços levam segundos. Se nenhum cenário couber no tempo-alvo, a recomendação é o mais perto do limite (menor tempo a bordo).</p>
+<p><b>2.18.2.</b> O <b>teto</b> (ex.: 60 min) é rígido e a <b>margem</b> (ex.: 10 min) é a folga para o trânsito: a otimização mira o <b>tempo-alvo = teto − margem</b> (50 min) — o rodapé mostra a conta. <b>Meta de lotação (%)</b>: com 90%, um ônibus de 42 lugares leva até 37 (folga para não deixar um colado em 42/42 e outro em 28/42); vale aqui e no “Configurar o atendimento”. Numa rota de atendimento com vários veículos há dois escopos: <b>Este veículo</b> (só a ordem e os pontos dele — nunca divide nem cria veículo) e <b>Todo o atendimento</b> (divide de novo todos os passageiros e, ao aplicar, substitui os veículos; ↶ Desfazer volta tudo). <b>Aplicar</b> sempre traça pelas vias e mostra o resumo: paradas antes → depois, tempo a bordo do 1º passageiro, KM operacional e ocioso e pendências do Limbo; se algo impedir, o motivo aparece na tela.</p>
 <p><b>Corredores até o destino</b> (2.18): a divisão agrupa quem está no mesmo corredor de acesso ao destino (ex.: oeste, centro, leste), respeitando lotação e tempo-alvo, e depois troca pontos entre veículos vizinhos para que nenhum ônibus entre no território do outro. Cada divisão mostra quantos pontos ficaram no território de outro veículo, e a recomendação evita os que se cruzam.</p>
 <ul><li><b>Atual</b> · <b>Menor KM ocioso</b> (começa pelo lado da garagem) · <b>Menor tempo de viagem</b> (tempo de rota + tempo a bordo) · <b>Menor percurso</b> (só o caminho mais curto até o destino) · <b>Varredura até o destino</b> (começa no ponto mais distante e contorna a cidade num só sentido, como no planejamento manual).</li>
 <li><b>Pontos estratégicos</b> (hubbing): junta os passageiros em menos paradas dentro do raio a pé, priorizando pontos padrão da base; <b>Menos pontos possível</b> concentra ainda mais.</li>
@@ -6918,7 +6990,7 @@ async function liveStart(){if(!liveUrl()||LIVE.on||LIVE.old)return;LIVE.on=true;
  try{const v=await liveGet('base=versao&'+presQ());if(v?.min&&verLt(APP_VERSION,v.min)){liveOld(v.min);return;}livePres(v);}catch{}
  renderSyncPill();identCheck();
  try{await livePull(true);if(liveDirty())await liveSave(true);}catch(e){LIVE.err=e.message;renderSyncPill();}
- setInterval(liveTick,15000);liveFast();document.addEventListener('visibilitychange',()=>{if(!document.hidden)liveTick();});setTimeout(campoCaixa,3000);}
+ intelSync();setInterval(liveTick,15000);liveFast();document.addEventListener('visibilitychange',()=>{if(!document.hidden)liveTick();});setTimeout(campoCaixa,3000);}
 /* 2.13.2: aba com versão abaixo da mínima do script → para de gravar e pede para recarregar (o trabalho local não se perde: volta junto na versão nova) */
 const verLt=(a,b)=>{const x=String(a).split('.').map(Number),y=String(b).split('.').map(Number);for(let i=0;i<3;i++){if((x[i]||0)!==(y[i]||0))return(x[i]||0)<(y[i]||0);}return false;};
 function liveOld(min){if(LIVE.old)return;LIVE.old=true;LIVE.on=false;clearTimeout(LIVE.t);renderSyncPill();
@@ -7509,8 +7581,9 @@ function foto_(p) {
   const raiz = raiz_(); let f = null;
   if (p.id) { try { f = DriveApp.getFileById(String(p.id).slice(0, 80)); } catch (x) { f = null; } }
   else if (p.l && p.n) {
-    const vs = raiz.getFoldersByName('vistorias-seguranca'), ls = vs.hasNext() ? vs.next().getFoldersByName(slug_(p.l)) : null, fs = ls && ls.hasNext() ? ls.next().getFoldersByName('fotos') : null;
-    if (fs && fs.hasNext()) { const d = fs.next(); String(p.n).split('|').slice(0, 4).some(function (n) { f = ultimo_(d, String(n).replace(/[\\\\/]/g, '_').slice(0, 160)); return !!f; }); }
+    const vs = raiz.getFoldersByName(p.a ? 'acompanhamentos-fotos' : 'vistorias-seguranca'), ls = vs.hasNext() ? vs.next().getFoldersByName(slug_(p.l)) : null;   // a=1: acompanhamento (sem subpasta fotos)
+    let d = null; if (ls && ls.hasNext()) { const P = ls.next(); if (p.a) d = P; else { const fs = P.getFoldersByName('fotos'); if (fs.hasNext()) d = fs.next(); } }
+    if (d) String(p.n).split('|').slice(0, 4).some(function (n) { f = ultimo_(d, String(n).replace(/[\\\\/]/g, '_').slice(0, 160)); return !!f; });
   }
   if (!f) return json_({ ok: false, erro: 'foto não encontrada' });
   let x = f, ok = false, fotos = false;
@@ -7537,7 +7610,7 @@ function dp_(P, tol) {
   let a = 0; for (let i = 1; i < P.length; i++) if (keep[i]) { seg(a, i); a = i; }
   return P.filter(function (_, i) { return keep[i]; });
 }
-const slugUrl_ = function (s) { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'x'; };
+const slugUrl_ = function (s) { return String(s || '').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'x'; };
 /* enxuga a base (idempotente). Métricas, paradas e fotos dos acompanhamentos não mudam. */
 function compactar_(doc, arq) {
   const rel = { merges: 0, mergesFicam: 0, trilhas: 0, pontosAntes: 0, pontosDepois: 0, atends: 0, slugs: [] }, c = doc.cat || {}, m = c.meta || {};
@@ -7578,10 +7651,43 @@ function compactarBase_(d, u) {
   histAdd_({ ver: v.ver + 1, at: at, by: u.nome, email: u.email, mat: u.mat, itens: [{ t: 'Base', a: 'compactou', n: Math.round(rel.antes / 1024) + ' → ' + Math.round(rel.depois / 1024) + ' KB' }] });
   return json_({ ok: true, ver: v.ver + 1, rel: rel, backup: nm, sha256: h });
 }
+/* ===== 2.18.2 — inteligência de rotas para a versão web (inteligencia/inteligencia-rotas.json, formato 1) ===== */
+function intelArq_() { return ultimo_(sub_(raiz_(), 'inteligencia'), 'inteligencia-rotas.json'); }
+function intelLer_() {
+  const f = intelArq_(); if (!f) return json_({ ok: true, dados: { kind: 'estudio-rotas-inteligencia', formato: 1, fatos: [] } });
+  return ContentService.createTextOutput('{"ok":true,"dados":' + f.getBlob().getDataAsString('UTF-8') + '}').setMimeType(ContentService.MimeType.JSON);
+}
+/* mesma regra do Estúdio (intelMerge): chave tipo§chave; vale o de “ultimo” mais recente; n = maior; primeiro = menor. Nunca apaga. */
+function intelJunta_(a, b) {
+  const m = {}, ord = [];
+  a.concat(b).forEach(function (f) {
+    if (!f || typeof f.tipo !== 'string' || f.chave == null) return;
+    const k = f.tipo + '§' + String(f.chave), o = m[k]; if (!o) { m[k] = f; ord.push(k); return; }
+    const nw = String(f.ultimo || '') > String(o.ultimo || '') ? f : o, x = JSON.parse(JSON.stringify(nw));
+    x.n = Math.max(+o.n || 1, +f.n || 1); x.primeiro = [o.primeiro, f.primeiro].filter(Boolean).sort()[0] || nw.primeiro; m[k] = x;
+  });
+  return ord.map(function (k) { return m[k]; });
+}
+function intelGravar_(d) {
+  if (!Array.isArray(d.fatos)) return json_({ ok: false, erro: 'sem fatos' });
+  const lk = LockService.getScriptLock(); if (!lk.tryLock(20000)) return json_({ ok: false, ocupado: true, erro: 'servidor ocupado — tentando de novo' });
+  try {
+    const f = intelArq_(); let at = { kind: 'estudio-rotas-inteligencia', formato: 1, fatos: [] };
+    if (f) { try { at = JSON.parse(f.getBlob().getDataAsString('UTF-8')); } catch (x) { return json_({ ok: false, erro: 'inteligencia-rotas.json ilegível — nada foi gravado' }); } }
+    const antes = JSON.stringify(at.fatos || []), fatos = intelJunta_(at.fatos || [], d.fatos.slice(0, 6000));
+    if (JSON.stringify(fatos) !== antes) {
+      const o = { kind: 'estudio-rotas-inteligencia', formato: 1, fatos: fatos, atualizado: new Date().toISOString() }, t = JSON.stringify(o, null, 1);
+      if (f) f.setContent(t); else sub_(raiz_(), 'inteligencia').createFile('inteligencia-rotas.json', t, 'application/json');
+      at = o;
+    }
+    return json_({ ok: true, n: fatos.length, dados: at });
+  } finally { lk.releaseLock(); }
+}
 function histArqs_() { const o = [], it = histPasta_().getFiles(); while (it.hasNext()) { const f = it.next(); if (/^historico-\\d{4}-\\d{2}\\.jsonl$/.test(f.getName())) o.push(f); } return o; }
 function baseGet_(p, a) {
   p.u = a && a.u;
   if (p.base === 'historico') return historico_(p);
+  if (p.base === 'inteligencia') return intelLer_();
   if (p.base === 'versao') { const v = baseVer_(), x = presenca2_(p); return json_({ ok: true, ver: v.ver, at: v.at, by: v.by, on: presenca_(p.quem), min: BASE_MIN, pres: x.pres, locks: x.locks, trava: x.trava }); }
   if (p.base === 'ler') {
     const v = baseVer_(), f = baseArq_();
@@ -7660,12 +7766,12 @@ function feito_(p) {
   });
   return json_({ ok: true, n: n.length });
 }
-function pacoteVer_() { const f = ultimo_(pastaCampo_(), 'pacote.json'); return json_({ ok: true, at: f ? f.getLastUpdated().toISOString() : '', appMin: APP_MIN }); }
+function pacoteVer_() { const f = ultimo_(pastaCampo_(), 'pacote.json'); return json_({ ok: true, at: f ? f.getLastUpdated().toISOString() : '', appMin: APP_MIN, modo: authModo_() }); }
 
 /* ===== 2.13.3 — usuários (nome, e-mail e matrícula, sem repetição) e histórico de alterações =====
    Cadastro em ScriptProperties USUARIOS (por e-mail). A mesma pessoa pode entrar em vários computadores (mesmo e-mail, nome e matrícula);
    e-mail, matrícula ou nome já usados por OUTRA pessoa são recusados. Histórico: base/historico/historico-AAAA-MM.jsonl (uma linha por gravação). */
-const nrm_ = function (s) { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\\s+/g, ' ').trim(); };
+const nrm_ = function (s) { return String(s || '').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase().replace(/\\s+/g, ' ').trim(); };
 function usuarios_() { try { return JSON.parse(PropertiesService.getScriptProperties().getProperty('USUARIOS') || '{}'); } catch (x) { return {}; } }
 function usuario_(d) {
   const nome = String(d.nome || '').trim().replace(/\\s+/g, ' ').slice(0, 80), email = String(d.email || '').trim().toLowerCase().slice(0, 120), mat = String(d.mat || '').trim().replace(/\\s+/g, '').slice(0, 30);
@@ -7794,6 +7900,7 @@ function doPost(e) {
   const u = a.u, pode = function (k) { return !u || !!permDe_(u)[k]; };
   if (d.acao === 'auth') return u ? json_({ ok: true, email: u.email, nome: u.nome, mat: u.mat, perfil: u.perfil, perm: permDe_(u), modo: authModo_() }) : json_({ ok: false, erro: 'entre com o Google' });
   if (/^(usuarios-|reconciliar$|legado$|compactar$)/.test(String(d.acao || ''))) return u && permDe_(u).admin ? admin_(d, u) : json_({ ok: false, negado: true, erro: 'só o administrador' });
+  if (d.acao === 'inteligencia-gravar') return ['plan', 'base'].some(pode) ? intelGravar_(d) : negado_('gravar a inteligência de rotas');
   if (d.acao === 'usuario') return usuario_(d);
   if (d.acao === 'base-gravar') return ['plan', 'base', 'pub', 'acomp', 'sst'].some(pode) ? baseGravar_(d, u) : negado_('gravar a base');
   if (d.acao === 'gravar' && d.nome === 'Rota Studio - dados.json') return json_({ ok: false, erro: 'versão antiga do Estúdio de Rotas — feche esta aba e abra de novo (Ctrl+F5)' });
@@ -7840,7 +7947,7 @@ const ACT={...CAT_ACT,...SYNC_ACT,...DRAG_ACT,...PAIR_ACT,...PUB_ACT,...ACOMP_AC
  vistStop:el=>{const id=sidOf(el);if(id)openVistoria({sid:id});},
  catWayLeg:el=>{const r=cur(),l=r?.calc?.legs.find(x=>x.key===el.dataset.key);if(!l?.geom)return;const nm=prompt('Nome da via validada (ex.: Rua do Jambo – entrada do Primavera):',(l.label||'Trecho')+'');if(nm===null)return;MAP.closePopup();catAddWay(l.geom,nm.trim()||'Trecho validado',confirm('A via é de mão dupla? (OK = mão dupla, Cancelar = só no sentido desta rota)'));toast('Trecho validado na Base ativa.','ok');},
  tab:el=>setTab(el.dataset.t),import:()=>openImportChooser(),importSheet:()=>pickImport('sheet'),stdImport:()=>startStdImport(),stdTemplate:()=>stdTemplate(),stdCsv:el=>exportStdCsv(el.dataset.id),stdCsvAll:()=>exportStdCsv(),stdKml:()=>exportStdKml(),stdClear:()=>clearStandards(),stdRestore:()=>{S.base.builtinRemoved=false;S.base.builtinOn=true;changed({base:true,recalc:true});toast('Rotas vigentes Kinross restauradas na biblioteca.','ok');},stdDel:el=>delStdSet(el.dataset.id),stdToggle:el=>toggleStdSet(el.dataset.id,el.checked),paxView:el=>setView('pax',el.dataset.v),help:()=>openHelp(),dlgClose:()=>$('dlg').close(),undo:()=>undo(),routeMenu:(el,ev)=>routeMenu(ev),newRoute:()=>addRoute(newRoute('Nova rota','IDA')),
- optimize:()=>optimizeRoute(cur()),walkCalc:async()=>{const r=cur();if(!r)return;for(const s of r.stops)for(const p of s.pax||[]){delete p.w;delete p.wk;}const w=await computeWalks(r,{reassign:true,fix:true});if(w)walkToast(w)||toast('Caminhada recalculada pela rua.','ok');},sheetFix:el=>sheetFix(+el.dataset.i),paxMove:el=>{const r=cur(),t=r?.stops.find(s=>s.id===el.dataset.sid);if(t)movePax(t);},paxUnpin:()=>unpinPax(),pathSug:()=>pathSugRun(),pathSugApply:el=>pathSugApply(+el.dataset.i||0),pathSugDismiss:()=>pathSugDismiss(),pathSugView:el=>{const i=+el.dataset.i||0;pathSugPreview(PATH_VIEW===i?-1:i);renderAll();},walkFix:async()=>{const r=cur();if(!r)return;const w=await computeWalks(r,{reassign:true,fix:true});if(w)walkToast(w)||toast('Ninguém acima do raio a pé.','ok');},scenarios:()=>openScenarios(),scnRun:()=>rerunScenarios(),scnApply:a=>applyScenario(a.dataset.id),scnManual:()=>scnManualPick(),trace:()=>{const r=cur();if(r)runRecalc(r,true);},traceAll:()=>traceAll(),fit:()=>fitRoute(),
+ optimize:()=>optimizeRoute(cur()),walkCalc:async()=>{const r=cur();if(!r)return;for(const s of r.stops)for(const p of s.pax||[]){delete p.w;delete p.wk;}const w=await computeWalks(r,{reassign:true,fix:true});if(w)walkToast(w)||toast('Caminhada recalculada pela rua.','ok');},sheetFix:el=>sheetFix(+el.dataset.i),paxMove:el=>{const r=cur(),t=r?.stops.find(s=>s.id===el.dataset.sid);if(t)movePax(t);},paxUnpin:()=>unpinPax(),pathSug:()=>pathSugRun(),pathSugApply:el=>pathSugApply(+el.dataset.i||0),pathSugDismiss:()=>pathSugDismiss(),pathSugView:el=>{const i=+el.dataset.i||0;pathSugPreview(PATH_VIEW===i?-1:i);renderAll();},walkFix:async()=>{const r=cur();if(!r)return;const w=await computeWalks(r,{reassign:true,fix:true});if(w)walkToast(w)||toast('Ninguém acima do raio a pé.','ok');},scenarios:()=>openScenarios(),scnRun:()=>rerunScenarios(),scnApply:a=>applyScenario(a.dataset.id),scnScope:a=>{$('dlg').close();openScenarios({go:true,scope:a.dataset.s});},scnManual:()=>scnManualPick(),trace:()=>{const r=cur();if(r)runRecalc(r,true);},traceAll:()=>traceAll(),fit:()=>fitRoute(),
  reverse:()=>{const r=cur();const idx=routableIdx(r);if(idx.length<2)return;pushUndo('Inverter ordem');const vals=idx.map(i=>r.stops[i]).reverse();idx.forEach((i,k)=>r.stops[i]=vals[k]);changed({recalc:true});},
  cluster:()=>applyCluster(),pointMode:el=>{const r=cur(),v=el.dataset.v;if(v==='addr')setPointMode(r,'addr');else if(v==='regroup'||!r.addrStops)setPointMode(r,'grouped');},selStop:el=>{const id=sidOf(el);if(SEL.stop===id)return;SEL.stop=id;renderAll();const s=stopById(id);if(MAP&&validLL(s)&&!MAP.getBounds().pad(-0.15).contains([s.lat,s.lon]))MAP.panTo([s.lat,s.lon]);},up:el=>moveStopOrder(sidOf(el),-1),down:el=>moveStopOrder(sidOf(el),1),details:el=>{const id=sidOf(el);OPEN_DETAILS.has(id)?OPEN_DETAILS.delete(id):OPEN_DETAILS.add(id);renderTab();},delStop:el=>removeStop(sidOf(el)),clearRejected:()=>clearRejected(),
  placeStop:el=>{setMode({type:'place',stopId:sidOf(el)});},geocodeOne:el=>openGeocode(stopById(sidOf(el))),geocodeAll:()=>geocodePending(cur()),
