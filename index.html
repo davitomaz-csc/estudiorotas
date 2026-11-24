@@ -728,7 +728,7 @@ body.pcol .top .iconbtn{color:var(--brand);background:var(--tint)}
 .top .cmdbtn .ic{width:16px;height:16px}.top .cmdbtn span{flex:1;text-align:left}
 #saveState{color:var(--muted);opacity:1;font-size:11.5px}
 .top button.pillbtn{height:32px;font-size:12.5px;padding:0 11px}
-@media(max-width:1380px){.top .cmdbtn{min-width:0}.top .cmdbtn span{display:none}}
+@media(max-width:1380px){.top .cmdbtn{min-width:0}}@media(max-width:1240px){.top .cmdbtn span{display:none}}
 @media(max-width:1240px){.top .brand .by,.top .brand .ver{display:none}}
 @media(max-width:1100px){.top .brand{display:none}.crumb{border-left:0;padding-left:0}}
 /* ---- painel e mapa ---- */
@@ -821,8 +821,6 @@ dialog.cmdk{max-width:min(640px,94vw);margin-top:12vh;padding:0;overflow:hidden}
 .occ{display:grid;gap:3px;min-width:0}.occ .n{font-weight:700;font-variant-numeric:tabular-nums}.occ .n small{font-weight:500;color:var(--muted)}
 .occ .bar{display:block;height:5px;border-radius:5px;background:#e8edf3;overflow:hidden}.occ .bar i{display:block;height:100%;background:var(--ok)}
 .occ.warn .bar i{background:var(--warn-mark)}.occ.bad .bar i{background:var(--bad)}.occ.bad .n{color:var(--bad)}
-.atc:has(.occ.warn) .vdot,.atc:has(.ride.warn) .vdot{box-shadow:0 0 0 2px #fff,0 0 0 4px var(--warn-mark)}
-.atc:has(.occ.bad) .vdot,.atc:has(.ride.bad) .vdot{box-shadow:0 0 0 2px #fff,0 0 0 4px var(--bad)}
 .ride,.km{font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--muted);font-size:11.5px}
 .ride.ok{color:var(--ok)}.ride.warn{color:var(--warn);font-weight:700}.ride.bad{color:var(--bad);font-weight:700}
 .metric small{font-size:12px;font-weight:600;color:var(--muted)}
@@ -971,9 +969,95 @@ details.aicard>summary{cursor:pointer;padding:2px 0}details.aicard>summary b{col
 @media(max-width:900px){body.pcol #panel{display:none}body.pcol #mapWrap{top:var(--hdr)}.toast{bottom:70px!important}}
 @media(hover:none){.top .cmdbtn kbd{display:none}}
 .sstf{-webkit-mask-image:none;mask-image:none}
+/* ---- 3.0.1 · sub-abas no topo, painel rola inteiro, cartões dos veículos, Campo ---- */
+.top .tabs{flex:0 1 auto;min-width:0;align-self:stretch;display:flex;align-items:center;gap:2px;margin:0 0 0 8px;padding:0 6px 0 12px;border:0;border-left:1px solid var(--line);background:none;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;scrollbar-color:var(--line2) transparent}
+.top .tabs::-webkit-scrollbar{height:4px}.top .tabs::-webkit-scrollbar-thumb{background:var(--line2);border-radius:4px}
+.top .tabs button{flex:none;display:inline-flex;flex-direction:row;align-items:center;gap:6px;height:34px;min-width:0;padding:0 12px;border:1px solid transparent;border-radius:9px;background:transparent;color:var(--muted);font-size:13px;font-weight:600;white-space:nowrap;overflow:visible;position:relative}
+.top .tabs button .ic{width:17px;height:17px;flex:none}
+.top .tabs button.on{color:var(--brand);background:var(--tint);border-color:#c9dcec}
+.top .tabs button.on .ic{color:var(--accent)}
+.top .tabs button .n{position:static;margin:0 0 0 1px;font-size:10px;line-height:16px;min-width:18px;padding:0 5px;border-radius:9px;background:var(--accent);color:#fff;font-weight:700;text-align:center}
+.top .tabs button.tabq{width:28px;height:28px;padding:0;margin:0 0 0 6px;justify-content:center;border-radius:50%;border:1px solid var(--line);background:#fff;color:var(--brand);font-size:12px}
+@media(hover:hover){.top .tabs button:hover{background:var(--soft);color:var(--ink);border-color:var(--line)}.top .tabs button.on:hover{background:var(--tint);color:var(--brand)}}
+.top .cmdbtn{flex:none}.top .spacer{min-width:8px}
+@media(max-width:1100px){.top .tabs{border-left:0;padding-left:0;margin-left:0}.top .tabs button{padding:0 10px}}
+#panel{overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;overscroll-behavior:contain}
+#panel #tabBody{flex:1 0 auto;overflow:visible}
+.route-bar .row:has(select[hidden]){justify-content:flex-start}
+body:not([data-mod="plan"]) #limboDock,body:not([data-mod="plan"]) #vehOffer{display:none!important}
+.atc{grid-template-columns:76px minmax(0,1fr);gap:6px;padding:6px 6px 6px 8px}
+.atc .vn{gap:5px;white-space:nowrap;min-width:0;overflow:hidden}
+.atc .vdot,.atstrip .vdot{box-shadow:none;outline:0}
+.atc button.atr{grid-template-columns:44px minmax(34px,1fr) 52px 54px;gap:6px;padding:3px 4px;min-width:0;max-width:100%;overflow:hidden}
+.atc button.atr>*{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.atc button.atr .chip{display:block;width:100%;box-sizing:border-box;margin:0;padding:1px 0;text-align:center;font-size:10px;letter-spacing:.2px}
+.atc .occ{height:auto;background:none;border-radius:0;overflow:visible;min-width:0}
+.atc .occ .n{padding:0;font-size:11.5px;line-height:1.25}
+.atc .occ .bar i{position:static}
+.atc .occ.warn .n{color:var(--warn)}
+.atc button.atr .ride,.atc button.atr .km{text-align:right;font-size:11.5px}
+.atstrip .ath .atmin{width:28px;padding:0;justify-content:center;flex:none}
+.atstrip.min{padding:7px 10px}.atstrip.min .ath{gap:8px}
+.atstrip .vps{display:flex;gap:4px;flex:none}
+.atstrip .vp{display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 9px;border:1px solid var(--line);border-radius:13px;background:#fff;font-size:12px;font-weight:650;color:var(--ink);font-variant-numeric:tabular-nums}
+.atstrip .vp.on{border-color:var(--vc);background:var(--tint)}
+.atstrip .vp .vdot{width:9px;height:9px}
+/* Campo */
+.kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:2px 0 12px}
+.kpi{padding:10px 12px;border-radius:var(--r2);box-shadow:var(--e1)}
+.kpi b{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.3px}
+.kpi span{font-size:11px;margin-top:2px}
+.kpi.warn b{color:var(--warn)}.kpi.ok b{color:var(--ok)}
+.acb{display:grid;gap:4px;margin:0 0 10px;font-size:12px;color:var(--ink);font-variant-numeric:tabular-nums}
+.acb>i{display:block;height:6px;border-radius:6px;background:#e8edf3;overflow:hidden}
+.acb>i>i{display:block;height:100%;border-radius:6px;background:var(--ok)}
+.acb.warn>i>i{background:var(--warn-mark)}.acb.bad>i>i{background:var(--bad)}
+.acpills{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:0 0 10px;padding-bottom:2px}
+.acpills button{flex:none;height:28px;padding:0 11px;border:1px solid var(--line);border-radius:14px;background:#fff;font-size:12px;font-weight:600;color:var(--muted);white-space:nowrap}
+.acpills button.on{background:var(--brand);border-color:var(--brand);color:#fff}
+.acv .catrow{border:1px solid var(--line);border-radius:var(--r2);background:#fff;padding:10px 12px;margin:0 0 8px;box-shadow:var(--e1)}
+.acv .catrow .ci>b{font-size:13.5px}
+.acv .catrow .ci .small{line-height:1.4}
+.acv .catrow>span.row button.sm{width:30px;height:30px;padding:0;justify-content:center}
+.ccard{border:1px solid var(--line);border-radius:var(--r2);background:#fff;padding:12px 14px;margin:0 0 12px;box-shadow:var(--e1)}
+.ccard h3{margin:0;font-size:13.5px}.ccard .csub{margin:2px 0 10px;font-size:11.5px;color:var(--muted)}
+.ccard .chd{display:flex;align-items:center;gap:8px;margin-bottom:2px}.ccard .chd h3{flex:1}
+.ccard .badge{font-size:11px;font-weight:650;color:var(--brand);background:var(--tint);border:1px solid #c9dcec;border-radius:11px;padding:2px 8px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.sufx{display:flex;align-items:stretch;border:1px solid var(--line2);border-radius:8px;background:#fff;overflow:hidden}
+.sufx:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px #2563eb26}
+.sufx input{flex:1;min-width:0;border:0!important;box-shadow:none!important;border-radius:0;font-variant-numeric:tabular-nums}
+.sufx i{display:grid;place-items:center;padding:0 10px;font-style:normal;font-size:12px;font-weight:650;color:var(--muted);background:var(--soft);border-left:1px solid var(--line)}
+.mchips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px;padding:0;list-style:none}
+.mchips li{display:inline-flex;align-items:center;gap:4px;max-width:100%;padding:3px 4px 3px 10px;border:1px solid var(--line);border-radius:14px;background:var(--soft);font-size:12.5px}
+.mchips li span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mchips li button{width:22px;height:22px;padding:0;border:0;border-radius:50%;background:transparent;color:var(--muted);display:grid;place-items:center;font-size:12px;flex:none}
+@media(hover:hover){.mchips li button:hover{background:#fee2e2;color:var(--bad)}}
+.madd{display:flex;gap:6px}.madd input{flex:1;min-width:0}
+.tgls{display:grid;border:1px solid var(--line);border-radius:var(--r1);overflow:hidden}
+.tgl{display:flex;align-items:center;gap:10px;padding:9px 10px;margin:0;font-size:12.5px;cursor:pointer;border-top:1px solid var(--line);background:#fff;position:relative}
+.tgl:first-child{border-top:0}
+@media(hover:hover){.tgl:hover{background:var(--soft)}}
+.tgl input{position:absolute;opacity:0;width:1px;height:1px;margin:0;pointer-events:none}
+.tgl .sw{position:relative;flex:none;width:34px;height:20px;border-radius:10px;background:#cbd5e1;transition:background-color var(--t1) ease}
+.tgl .sw::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 2px #0f2a4440;transition:transform var(--t1) ease}
+.tgl input:checked+.sw{background:var(--ok)}
+.tgl input:checked+.sw::after{transform:translateX(14px)}
+.tgl input:focus-visible+.sw{outline:2px solid var(--accent);outline-offset:2px}
+.tgl input:not(:checked)~span:last-child{color:var(--muted)}
+/* 3.0.1 · topo sem a marca: identidade no logo do trilho (dica ao passar o mouse ou focar) */
+.top .tabs{margin-left:0;padding-left:2px;border-left:0}
+button.rail-logo{padding:0;cursor:default;color:#fff;position:relative}
+.rail{z-index:1001}
+@media(hover:hover){button.rail-logo:hover{background:#ffffff1f}}
+.rail-logo::after{content:attr(data-tip);position:absolute;left:calc(100% + 12px);top:50%;transform:translateY(-50%);white-space:nowrap;padding:7px 11px;border-radius:9px;background:var(--ink);color:#fff;font:600 12.5px/1.2 Barlow,"Segoe UI",sans-serif;letter-spacing:.1px;box-shadow:var(--e2);opacity:0;visibility:hidden;pointer-events:none;transition:opacity var(--t1) ease;z-index:1100}
+.rail-logo:hover::after,.rail-logo:focus::after{opacity:1;visibility:visible}
+.route-bar .rb-top{flex-wrap:wrap;row-gap:6px}
+.route-bar .rb-top .proj-title{flex:1 1 auto;field-sizing:content;min-width:140px;max-width:100%}
+.route-bar #btnUndo{width:30px;padding:0;justify-content:center;font-size:15px;flex:none}
+.route-bar .rb-top .pill{font-size:10.5px;padding:3px 8px;letter-spacing:.2px}
 </style></head><body>
 <aside id="rail" class="rail" aria-label="Navegação principal">
- <div class="rail-logo" title="Estúdio de Rotas"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5.5" cy="6" r="2.2"/><circle cx="18.5" cy="18" r="2.2"/><path d="M7.7 6h7.8a3.8 3.8 0 0 1 0 7.6H8.5a3.8 3.8 0 0 0 0 7.6h7.8"/></svg></div>
+ <button type="button" class="rail-logo" data-tip="Estúdio de Rotas" aria-label="Estúdio de Rotas"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5.5" cy="6" r="2.2"/><circle cx="18.5" cy="18" r="2.2"/><path d="M7.7 6h7.8a3.8 3.8 0 0 1 0 7.6H8.5a3.8 3.8 0 0 0 0 7.6h7.8"/></svg></button>
  <nav id="mods" class="mods" aria-label="Módulos"></nav>
  <span class="spacer"></span>
  <button id="btnProv" class="provbtn rail-btn" data-act="config" title="Ajustes: serviços, dados, conta e equipe" aria-label="Ajustes (configurações)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span>Ajustes</span></button>
@@ -982,8 +1066,8 @@ details.aicard>summary{cursor:pointer;padding:2px 0}details.aicard>summary b{col
 </aside>
 <header class="top">
  <button id="btnPanel" class="iconbtn" data-act="panelToggle" aria-expanded="true" aria-controls="panel" title="Recolher painel ([)" aria-label="Recolher painel"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14.5 6-6 6 6 6"/></svg></button>
- <div class="brand"><b>Estúdio de Rotas</b><span class="by">by Davi</span><span class="ver">2.12.4 · Paracatu</span></div>
- <nav id="crumb" class="crumb" aria-label="Você está em"></nav>
+ <nav class="tabs" id="tabs" aria-label="Seções"></nav>
+ <nav id="crumb" class="crumb" aria-label="Você está em" hidden></nav>
  <span class="spacer"></span>
  <button id="btnCmd" class="cmdbtn" data-act="cmdk" title="Buscar linha, ponto, rota ou ação (Ctrl K)" aria-keyshortcuts="Control+K"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span>Buscar linha, ponto ou ação</span><kbd>Ctrl K</kbd></button>
  <span id="saveState"></span>
@@ -993,11 +1077,10 @@ details.aicard>summary{cursor:pointer;padding:2px 0}details.aicard>summary b{col
 </header>
 <aside id="panel">
  <div class="route-bar">
-  <div class="rb-top"><input id="projTitle" class="proj-title edit-only" aria-label="Nome do projeto" title="Nome do projeto (clique para editar)"><span id="statusPill" class="pill" title="Situação da roteirização da rota aberta">Rascunho</span><button id="btnStale" class="sm edit-only" data-act="trace" title="A rota mudou (edição, colega ou cerca) e o traçado não foi refeito. Nada é recalculado sozinho." hidden>↻ Recalcular</button><button id="btnUndo" class="sm edit-only" data-act="undo" title="Desfazer a última edição (Ctrl+Z)" disabled>↶ Desfazer</button></div>
+  <div class="rb-top"><input id="projTitle" class="proj-title edit-only" aria-label="Nome do projeto" title="Nome do projeto (clique para editar)"><span id="statusPill" class="pill" title="Situação da roteirização da rota aberta">Rascunho</span><button id="btnStale" class="sm edit-only" data-act="trace" title="A rota mudou (edição, colega ou cerca) e o traçado não foi refeito. Nada é recalculado sozinho." hidden>↻ Recalcular</button><button id="btnUndo" class="sm edit-only" data-act="undo" title="Desfazer a última edição (Ctrl+Z)" aria-label="Desfazer" disabled>↶</button></div>
   <div class="row"><select id="routeSel" aria-label="Rota atual"></select><button class="sm edit-only" data-act="routeMenu" title="Nova rota, duplicar, criar volta, excluir">⋯ Rotas</button></div>
   <div id="routeMeta" class="route-meta"></div>
  </div>
- <nav class="tabs" id="tabs" aria-label="Seções"></nav>
  <div id="tabBody"></div>
 </aside>
 <main id="mapWrap">
@@ -1020,7 +1103,7 @@ details.aicard>summary{cursor:pointer;padding:2px 0}details.aicard>summary b{col
 <script>
 'use strict';
 /* ===================== Utilidades ===================== */
-const APP_VERSION='3.0.0';
+const APP_VERSION='3.0.1';
 /* lotação padrão das viagens (2.8: 42 lugares) */
 const CAP_DEF=42;
 /* cores do mapa (2.7.1): IDA azul e VOLTA verde-água, sempre em linha contínua; deslocamento ocioso (garagem) tracejado cinza-escuro */
@@ -5094,8 +5177,10 @@ function tabAcomp(){if(!CAT_READY)return '<p class="muted">Carregando a Base ati
   <label class="field"><span>Frente de serviço</span><select data-acf="f"><option value="">Todas</option>${frs.map(f=>`<option ${norm(f)===norm(ACF.f)?'selected':''}>${esc(f)}</option>`).join('')}</select></label><label class="field"><span>Situação</span><select data-acf="st"><option value="">Todas</option>${Object.entries(AC_ST).map(([k,[l]])=>`<option value="${k}" ${ACF.st===k?'selected':''}>${l}</option>`).join('')}</select></label>
   <label class="field"><span>Linha</span><input data-acf="l" value="${esc(ACF.l)}" placeholder="ex.: ADM 01"></label><label class="field"><span>Auditor</span><input data-acf="aud" value="${esc(ACF.aud)}"></label><label class="field" style="grid-column:1/-1"><span>Motorista</span><input data-acf="mot" value="${esc(ACF.mot)}"></label></div>
   ${on?'<p style="margin:6px 0 0"><button class="sm" data-act="acompClear">Limpar filtro</button></p>':''}</details>`;
- return `<p class="viewtip">${esc(ACOMP_TIP[ACOMP_VIEW])}</p>`+filt+({painel:acPanelView,lista:acListView,tratativa:acTratView,seguranca:acSstView,config:acConfigView}[ACOMP_VIEW]||acPanelView)(list,all);}
-const acBar=(n,max,txt,cls='')=>`<div class="occ"><i class="${cls}" style="width:${max?Math.round(n/max*100):0}%"></i><span>${txt}</span></div>`;
+ /* 3.0.1: situação em pílulas numa linha; o resto do filtro continua no “Filtros” */
+ const pills=filt?`<div class="acpills" role="group" aria-label="Situação dos acompanhamentos">${[['','Todas'],...Object.entries(AC_ST).map(([k,[l]])=>[k,l])].map(([k,l])=>`<button type="button" class="${(ACF.st||'')===k?'on':''}" data-act="acompSt" data-v="${k}" aria-pressed="${(ACF.st||'')===k}">${esc(l)}</button>`).join('')}</div>`:'';
+ return `<p class="viewtip">${esc(ACOMP_TIP[ACOMP_VIEW])}</p>`+pills+filt+`<div class="acv">`+({painel:acPanelView,lista:acListView,tratativa:acTratView,seguranca:acSstView,config:acConfigView}[ACOMP_VIEW]||acPanelView)(list,all)+'</div>';}
+const acBar=(n,max,txt,cls='')=>`<div class="acb ${cls}"><span>${txt}</span><i aria-hidden="true"><i style="width:${max?Math.min(100,Math.round(n/max*100)):0}%"></i></i></div>`;
 /* 3.0: estado vazio que diz o próximo passo */
 const emptyBox=(i,t,p,btns='')=>`<div class="empty">${ic(i,'big')}<b>${t}</b><p>${p}</p>${btns?`<div class="row">${btns}</div>`:''}</div>`;
 function acPanelView(list){if(!list.length)return acompList().length?'<div class="note info">Nenhum acompanhamento no filtro.</div>':emptyBox('acomp','Nenhum acompanhamento ainda','No celular, o <b>Estúdio de Rotas Campo</b> registra a viagem (paradas, embarques, rastro e fotos) e envia sozinho para cá. Comece gerando o pacote do celular; arquivos recebidos à mão entram em <b>⬆ Importar acompanhamento</b>.',READONLY?'':'<button class="primary" data-act="fieldPack">📱 Pacote do celular</button><button data-act="campoNow">↻ Buscar do celular</button>');
@@ -5127,13 +5212,18 @@ function acTratView(list){const D=list.flatMap(acDevs).sort((x,y)=>(!!x.s.trat-!
   return `<div class="catrow" style="${t?'opacity:.75':''}"><div class="ci"><b>${esc(h.linha)} · ${esc(h.sentido)}</b> <span class="muted small">${esc(fdate(h.data+'T12:00'))} · ${a.mode==='A'?'motorista '+esc(h.motorista||'—'):acCar(a)?'vistoria técnica (carro)':'individual'}</span><div class="small">${acDevTxt(d)}</div>
    ${t?`<div class="row" style="gap:4px;margin-top:3px"><span class="chip ${AC_TRAT[t.a][1]}">${AC_TRAT[t.a][0]}</span><span class="muted small">${esc(t.by||'')} · ${fdate(t.at)}${t.note?' · '+esc(t.note):''}</span><button class="sm edit-only" data-act="acompTrat" data-a="reopen" ${key} title="Reabrir a tratativa (o que já mudou na Base continua)">↺</button></div>`
    :d.kind==='ref'?`<div class="row edit-only" style="gap:4px;margin-top:4px"><button class="sm" data-act="acompTrat" data-a="ref" ${key} title="Grava a referência informada em campo no ponto da Base">✓ Atualizar referência na Base</button><button class="sm" data-act="acompTrat" data-a="keep" ${key} title="Mantém a referência cadastrada">Manter a atual</button><button class="sm" data-act="acompShow" data-id="${esc(a.id)}" data-k="ref" data-i="${d.i}" title="Ver no mapa">⌖</button></div>`:`<div class="row edit-only" style="gap:4px;margin-top:4px">${d.kind==='stop'?`<button class="sm" data-act="acompTrat" data-a="add" ${key} title="Cria um ponto novo na Base, na posição registrada em campo, com pedido de inclusão nesta linha (entra a vistoriar)">➕ Adicionar ponto à Base</button>${mp?`<button class="sm" data-act="acompTrat" data-a="move" ${key} title="Move o ponto Nº ${esc(d.s.match.n)} da Base para a posição real de campo (${fmtDist(d.s.match.d)}); volta a ficar a vistoriar">📍 Atualizar ponto da Base</button>`:''}`:`<button class="sm" data-act="acompTrat" data-a="adapt" ${key} title="Abre a viagem no Planejamento para ajustar o traçado; salve na Base para criar a nova versão">🗺 Adaptar a rota</button>`}<button class="sm" data-act="acompTrat" data-a="disc" ${key} title="Mantém a Base como está e registra como falha operacional/comportamental do motorista, para feedback e orientação">🙅 Desconsiderar na Base</button><button class="sm" data-act="acompShow" data-id="${esc(a.id)}" data-k="${d.kind}" data-i="${d.i}" title="Ver no mapa">⌖</button></div>`}</div></div>`;}).join('')}</div></div>`;}
-function acConfigView(){const c=acompCfg(),off=new Set(c.ckOff||[]);
- return `<div class="sec"><h3>Raio de tolerância</h3><div class="grid2"><label class="field"><span>Parada dentro do ponto até (metros)</span><input type="number" min="10" max="300" step="5" data-acc="tol" value="${esc(c.tol)}"></label><label class="field"><span>Saída do traçado a partir de (metros)</span><input type="number" min="50" max="1000" step="10" data-acc="offRoute" value="${esc(c.offRoute)}"></label></div>
- <p class="muted small">Parada a mais de ${esc(c.tol)} m do ponto programado mais perto pede o motivo no celular e vira desvio para tratar.</p></div>
- <div class="sec"><h3>Motivos de parada fora do ponto</h3><label class="field"><span>Um motivo por linha (o celular acrescenta “Outros”)</span><textarea rows="6" data-acc="motivos">${esc(c.motivos.join('\n'))}</textarea></label></div>
- <div class="sec"><h3>Checklist do Modo A (com o motorista)</h3>${ACOMP_CK.map(x=>`<label class="check"><input type="checkbox" data-acck="${x.k}" ${off.has(x.k)?'':'checked'}> ${esc(x.l)}</label>`).join('')}
- <label class="field" style="margin-top:6px"><span>Itens extras da empresa (Sim/Não), um por linha</span><textarea rows="3" data-acc="ckExtra" placeholder="ex.: Cinto de segurança do motorista">${esc((c.ckExtra||[]).join('\n'))}</textarea></label></div>
- <div class="note warn small">Depois de mudar, gere um <b>📱 Pacote do celular</b> novo (aba Acompanhamentos) para levar esta configuração ao app de campo.</div>`;}
+function acConfigView(){const c=acompCfg(),off=new Set(c.ckOff||[]),nOn=ACOMP_CK.filter(x=>!off.has(x.k)).length,ex=c.ckExtra||[];
+ const num=(k,lab,min,max,st)=>`<label class="field"><span>${lab}</span><span class="sufx"><input type="number" min="${min}" max="${max}" step="${st}" data-acc="${k}" value="${esc(c[k])}" inputmode="numeric"><i aria-hidden="true">m</i></span></label>`;
+ return `<div class="ccard"><h3>Raio de tolerância</h3><p class="csub">Quando uma parada conta como “no ponto” e quando o veículo saiu do traçado.</p><div class="grid2">${num('tol','Parada dentro do ponto até',10,300,5)}${num('offRoute','Saída do traçado a partir de',50,1000,10)}</div>
+ <p class="muted small" style="margin:8px 0 0">Parada a mais de ${esc(c.tol)} m do ponto programado mais perto pede o motivo no celular e vira desvio para tratar.</p></div>
+ <div class="ccard"><div class="chd"><h3>Motivos de parada fora do ponto</h3><span class="badge">${c.motivos.length} de 15</span></div><p class="csub">O celular mostra esta lista e acrescenta “Outros”.</p>
+ <ul class="mchips" aria-label="Motivos cadastrados">${c.motivos.map((m,i)=>`<li><span title="${esc(m)}">${esc(m)}</span><button type="button" class="edit-only" data-act="accMot" data-a="rm" data-i="${i}" aria-label="Remover o motivo ${esc(m)}" title="Remover">✕</button></li>`).join('')}</ul>
+ <div class="madd edit-only"><input id="accMotNew" maxlength="80" placeholder="Adicionar motivo — ex.: Via interditada" aria-label="Novo motivo" ${c.motivos.length>=15?'disabled':''}><button type="button" class="sm" data-act="accMot" data-a="add" ${c.motivos.length>=15?'disabled':''}>＋ Adicionar</button></div>
+ <textarea data-acc="motivos" hidden aria-hidden="true">${esc(c.motivos.join('\n'))}</textarea></div>
+ <div class="ccard"><div class="chd"><h3>Checklist do Modo A (com o motorista)</h3><span class="badge">${nOn} de ${ACOMP_CK.length} itens ativos</span></div><p class="csub">Itens desligados não aparecem no celular.</p>
+ <div class="tgls">${ACOMP_CK.map(x=>`<label class="tgl"><input type="checkbox" data-acck="${x.k}" ${off.has(x.k)?'':'checked'}><span class="sw" aria-hidden="true"></span><span>${esc(x.l)}</span></label>`).join('')}</div>
+ <label class="field" style="margin-top:10px"><span>Itens extras da empresa (Sim/Não), um por linha${ex.length?' · '+ex.length+' item(ns)':''}</span><textarea rows="3" data-acc="ckExtra" placeholder="ex.: Cinto de segurança do motorista">${esc(ex.join('\n'))}</textarea></label></div>
+ <div class="note warn small">Depois de mudar, gere um <b>📱 Pacote do celular</b> novo (aba Viagens) para levar esta configuração ao app de campo.</div>`;}
 /* checklist do formulário “Controle de acompanhamento de linha” — o mesmo do app de campo (CK) */
 const ACOMP_CK=[{k:'cracha',l:'Crachá com treinamento válido',t:'sn',ok:['Sim'],obs:1,h:'O motorista está com o crachá e o treinamento válidos?'},{k:'cklist',l:'Check-list preenchido corretamente',t:'sn',ok:['Sim'],obs:1,h:'O check-list do veículo do dia está preenchido corretamente?'},{k:'art',l:'ART',t:'sn',ok:['Sim'],obs:1,h:'A ART está no veículo e em dia?'},{k:'alerta',l:'Sempre Alerta',t:'sn',ok:['Sim'],obs:1,h:'O item Sempre Alerta está conforme?'},{k:'extintor',l:'Validade do extintor de incêndio',t:'date',h:'Informe a data de validade escrita no extintor. Vencido = não conforme.'},{k:'kit',l:'Kit primeiros socorros',t:'opt',o:['Não possui','Possui (lacrado)','Possui (aberto)'],ok:['Possui (lacrado)'],h:'Lacrado = completo e intacto. Aberto ou ausente = não conforme.'},{k:'painel',l:'Erro no painel',t:'opt',o:['Não possui','Possui'],ok:['Não possui'],desc:'Possui',h:'Há alguma luz de erro ou alerta acesa no painel? Se houver, descreva o problema.'},{k:'roleta',l:'Roleta travada',t:'opt',o:['Não','Sim'],ok:['Não'],h:'A roleta está travando a passagem? “Sim” = não conforme.'},{k:'visor',l:'Visor de velocidade',t:'opt',o:['Sim','Não'],ok:['Sim'],h:'O visor de velocidade para os passageiros está funcionando?'},{k:'calco',l:'Calço',t:'opt',o:['Completo (calço e corrente)','Incompleto','Não possui'],ok:['Completo (calço e corrente)'],desc:'Incompleto',h:'Calço de roda com corrente. Se estiver incompleto, descreva o que falta.'}];
 /* mapa: traçado planejado, pontos programados, paradas de campo (verde no ponto, vermelho fora) e rastro real */
@@ -5190,14 +5280,18 @@ function acReportRuntime(){var D=window.REL;if(!window.L)return;var m=L.map('m',
 function acompReport(id){const a=CAT.acomps?.[id];if(!a)return;const html=acReportHtml(a),nm='Relatorio_acompanhamento_'+fileSafe(a.head.linha+'_'+a.head.sentido+'_'+a.head.data);
  dialog('Compartilhar com o cliente',`<p style="margin-top:0">Relatório visual da viagem <b>${esc(a.head.linha)} · ${esc(a.head.sentido)}</b> de ${esc(fdate(a.head.data+'T12:00'))}: mapa do itinerário cumprido, pontualidade, passageiros por ponto, ocupação, checklist e ações de melhoria.</p><p class="muted small">Não leva nomes nem matrículas, observações internas, motivos detalhados nem justificativas. Abra para imprimir em PDF ou baixe o arquivo para enviar.</p>`,
   [['Fechar',null],['⬇ Baixar (HTML)',()=>{download(html,nm+'.html','text/html');return false;}],['↗ Abrir para imprimir / PDF',()=>{const u=URL.createObjectURL(new Blob([html],{type:'text/html'}));window.open(u,'_blank');setTimeout(()=>URL.revokeObjectURL(u),60000);return false;}]]);}
-function acompBind(tb){tb.addEventListener('change',e=>{const el=e.target;if(MOD!=='acomp')return;if(el.dataset?.sstf!==undefined){SST_RID=el.value;renderTab();return;}
+function acompBind(tb){tb.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='accMotNew'){e.preventDefault();ACT.accMot({dataset:{a:'add'}});}});tb.addEventListener('change',e=>{const el=e.target;if(MOD!=='acomp')return;if(el.dataset?.sstf!==undefined){SST_RID=el.value;renderTab();return;}
  if(el.dataset?.acf!==undefined){ACF[el.dataset.acf]=el.value.trim();renderTab();renderTabs();}
  else if(el.dataset?.acc||el.dataset?.acck){const c={...(CAT.acomp||{})};if(el.dataset.acck){const off=new Set(c.ckOff||[]);el.checked?off.delete(el.dataset.acck):off.add(el.dataset.acck);c.ckOff=[...off];}
   else{const k=el.dataset.acc;if(k==='motivos'||k==='ckExtra'){const v=el.value.split('\n').map(x=>x.trim()).filter(Boolean).slice(0,15);if(k==='motivos'&&!v.length){toast('Deixe pelo menos um motivo.','warn');renderTab();return;}c[k]=v;}else{const v=Math.round(+el.value);const lim=k==='tol'?[10,300]:[50,1000];if(!(v>=lim[0]&&v<=lim[1])){toast('Use um valor entre '+lim[0]+' e '+lim[1]+' m.','warn');renderTab();return;}c[k]=v;}}
   CAT.acomp=c;catLog('alterar','acompanhamento','','configuração');catSave();CAT.meta.rev++;renderTab();}});}
 const ACOMP_ACT={
+ accMot:el=>{const ta=document.querySelector('#tabBody textarea[data-acc="motivos"]');if(!ta)return;const v=ta.value.split('\n').map(x=>x.trim()).filter(Boolean),add=el.dataset.a!=='rm';
+  if(!add)v.splice(+el.dataset.i,1);else{const inp=$('accMotNew'),t=(inp?.value||'').trim();if(!t){inp?.focus();return;}if(v.some(x=>norm(x)===norm(t))){toast('Esse motivo já está na lista.','warn');return;}if(v.length>=15){toast('A lista vai até 15 motivos.','warn');return;}v.push(t);}
+  ta.value=v.join('\n');ta.dispatchEvent(new Event('change',{bubbles:true}));if(add)setTimeout(()=>$('accMotNew')?.focus(),0);},
  acompView:el=>{ACOMP_VIEW=el.dataset.v;renderTabs();renderTab();},
  acompGo:()=>{ACOMP_VIEW='lista';setMod('acomp');},
+ acompSt:el=>{ACF.st=el.dataset.v||'';renderTab();renderTabs();},
  acompClear:()=>{for(const k in ACF)ACF[k]='';renderTab();renderTabs();},
  acompShow:el=>acompShow(el.dataset.id,el.dataset.k,el.dataset.i),
  acompReport:el=>acompReport(el.dataset.id),acompTimes:el=>acompTimes(el.dataset.id),
@@ -6163,7 +6257,7 @@ function initMap(){MAP=L.map('map',{zoomControl:false,doubleClickZoom:false}).se
  const first=(BASEMAPS[S.ui?.basemap]||BASEMAPS.osm)[1];first.addTo(MAP);
  if(CHAIN.includes(first)&&first!==streets){const c=MAP.project([PARACATU.lat,PARACATU.lon],15).divideBy(256).floor();const url=L.Util.template(first._url,{s:'a',z:15,x:c.x,y:c.y,r:''});fetch(url,{referrerPolicy:'no-referrer',cache:'no-store'}).then(r=>r.ok?r.blob():null).then(b=>{if(!b||b.size<4000)swap(first,'veio bloqueado');}).catch(()=>{});}
  for(const[n,z]of[['pFence',350],['pBase',360],['pIdle',404],['pLeg',410],['pArrow',415],['pBStop',580],['pReco',585],['pPax',590],['pTerm',620],['pVia',650]]){MAP.createPane(n).style.zIndex=z;}
- for(const k of['fences','legs','idle','arrows','vias','stops','term','temp','handles','garage','sug'])LY[k]=L.layerGroup().addTo(MAP);LY.base=L.layerGroup();LY.bstops=L.layerGroup();LY.pax=L.layerGroup().addTo(MAP);LY.reco=L.layerGroup().addTo(MAP);LY.paxAll=L.layerGroup();
+ for(const k of['fences','legs','idle','arrows','vias','stops','term','temp','handles','garage','sug','sib','xed'])LY[k]=L.layerGroup().addTo(MAP);LY.base=L.layerGroup();LY.bstops=L.layerGroup();LY.pax=L.layerGroup().addTo(MAP);LY.reco=L.layerGroup().addTo(MAP);LY.paxAll=L.layerGroup();
  LY.base.addTo(MAP);if(S.base.showStops)LY.bstops.addTo(MAP);
  L.control.layers(Object.fromEntries(Object.values(BASEMAPS)),{'Pontos padrão (zoom 14+)':LY.bstops},{position:'topright'}).addTo(MAP);
  MAP.on('baselayerchange',e=>{const k=Object.keys(BASEMAPS).find(k=>BASEMAPS[k][1]===e.layer);if(k){S.ui={...(S.ui||{}),basemap:k};scheduleSave();}});
@@ -6291,7 +6385,8 @@ const TAB_TIP={stops:'Paradas: endereços e pontos da rota aberta, na ordem do t
 const ACT_TIPS={stdImport:'Importa linhas de KML/KMZ/ZIP (My Maps) ou de planilha para a Base ativa',stdTemplate:'Baixa o modelo de planilha para importar linhas e pontos',import:'Abre arquivos: KML/KMZ/ZIP, planilha, backup ou pacote',fieldPack:'Gera o pacote do celular (app Estúdio de Rotas Campo): linhas para acompanhar e pontos para vistoriar',acompGo:'Abre o módulo Acompanhamentos: pacote do celular, importação de acompanhamentos e vistorias, tratativas e relatórios',fieldImport:'Traz os resultados das vistorias feitas no celular',catCsv:'Baixa esta lista em planilha (CSV)',catKml:'Baixa as viagens vigentes em KML (My Maps / Google Earth)',catExport:'Baixa a Base inteira (.json) para guardar ou levar para outro computador',catExportPh:'Baixa o pacote da Base com as fotos das vistorias',catDupAll:'Procura pontos cadastrados mais de uma vez e pergunta, com mapa, se unifica',catUnmerge:'Desfaz unificações de pontos e deixa escolher de novo',catSplitDirs:'Cria um ponto para cada sentido onde a IDA e a VOLTA usam o mesmo ponto',catNewPoint:'Cadastra um ponto novo ou um pedido de inclusão numa linha',catNewLine:'Cria uma linha nova em etapas',catFrente:'Cadastra uma frente de serviço (cliente) com cor, logo e grupos',catNewTrips:'Completa horário, dias, veículo e demanda das viagens novas',catTimes:'Aplica os horários do rotograma (início, fim e cada ponto) nas viagens',catTmAll:'Muda de onde vêm os horários de todas as viagens (rotograma ou sistema)',catSysTimesAll:'Traça cada viagem e grava o horário de cada ponto pela metodologia do sistema',catGeoAll:'Muda como as viagens são desenhadas: pelo roteador do sistema ou fixas no traçado do KML',catGenLinesAll:'Traça pelas ruas os itinerários que ainda não têm trajeto',catWayFromRoute:'Guarda o trajeto calculado da rota aberta no Planejamento como via validada',catFenceFromProject:'Copia as cercas da aba Cercas do Planejamento para a Base',catSaveCur:'Grava a rota aberta no Planejamento na Base (viagem nova ou nova versão)',catTraceSave:'Traça a rota aberta pelas ruas e volta para esta janela',catBuiltin:'Importa de novo as rotas vigentes Kinross que vêm embutidas no arquivo',catClear:'Apaga a Base ativa (pede confirmação; baixe o pacote antes)',snaps:'Versões automáticas guardadas neste navegador: compare e restaure',dados:'Pasta compartilhada, link do cliente, backup e versões',catPt:'Detalhes, edição e vistorias do ponto',catPtShow:'Ver no mapa',board:'Indicadores e gráficos em tela cheia (painel de decisão)',boardCsv:'Baixa os indicadores de cada viagem em planilha (CSV)',boardPrint:'Imprime o painel'};
 /* três módulos: Planejamento (montar e otimizar rotas), Base ativa (linhas e pontos em operação) e Divulgação (material para o passageiro) */
 const MODS=[['plan','Planejamento','Montar, otimizar e comparar rotas','Planejar'],['base','Base ativa','Linhas, viagens e pontos em operação; painel de decisão','Base'],['pub','Divulgação','Folhetos, quadros, placas, portal e WhatsApp para o passageiro','Divulgar'],['acomp','Acompanhamentos','Acompanhamento de linhas em campo: painel, tratativa de desvios, relatório ao cliente e configurações','Campo']];
-const PLAN_LAYERS=['legs','idle','arrows','vias','stops','term','handles','garage','sug','pax'];
+/* 3.0.1: tudo o que o Planejamento desenha (cercas, outros veículos do atendimento, recomendação, extensão em edição) sai do mapa nos outros módulos */
+const PLAN_LAYERS=['fences','legs','idle','arrows','vias','stops','term','handles','garage','sug','pax','reco','sib','xed'];
 function renderMods(){const el=$('mods');if(!el)return;el.hidden=READONLY;el.innerHTML=MODS.filter(([k])=>modOk(k)).map(([k,l,t,sh])=>`<button class="${MOD===k?'on':''}" data-act="mod" data-m="${k}" title="${l} — ${t}" aria-label="${l}" ${MOD===k?'aria-current="page"':''}>${ic(k)}<span>${sh||l}</span></button>`).join('');renderShell();}
 const toPlan=()=>{if(MOD!=='plan')setMod('plan');};
 function setMod(m){if(READONLY)m='plan';if(!MODS.some(x=>x[0]===m))m='plan';if(!modOk(m))m=MODS.find(x=>modOk(x[0]))?.[0]||m;const was=MOD;MOD=m;S.ui={...(S.ui||{}),mod:m};document.body.dataset.mod=m;if(MODE.type!=='idle'&&MAP)setMode({type:'idle'});
@@ -6323,11 +6418,14 @@ function changed(o={}){if(UNDO_NEW.length&&lockGate())o={...o,recalc:false};if(!
 const requestRecalc=debounce(force=>{const r=cur();if(!r)return;if(!r.calc&&!force)return;if(S.cfg.autoRecalc===false&&!force){renderStatus();return;}runRecalc(r,force);},280);
 async function runRecalc(r,force){const lkBy=LIVE.on?lockBy(r.id):'';if(lkBy){if(force)toast('🔒 Não recalculei: a rota '+(r.name||'')+' está em edição por '+lkBy+'. Só quem está editando pode recalcular — as outras rotas estão livres.','warn',8000);return;}if(RECALC.has(r.id)){RECALC_AGAIN.add(r.id);return;}RECALC.add(r.id);try{let guard=0;do{RECALC_AGAIN.delete(r.id);if(!force&&r.calc&&!isStale(r))break;force=false;await computeRoute(r);if(r===cur())renderAll();}while((RECALC_AGAIN.has(r.id)||isStale(r))&&guard++<4);}catch(e){toast('Falha ao traçar: '+e.message,'bad',8000);}finally{RECALC.delete(r.id);const nr=S.routes.find(x=>x.id===r.id);if(nr&&nr!==r&&r.calc&&routeSig(nr)===r.calc.sig)nr.calc=r.calc;if(!READONLY)scheduleSave();renderAll();if(PATH_EDIT.has(r.id))pathLater(r);}}
 function renderStatus(){const r=cur(),el=$('statusPill');if(!el)return;let t='Sem rota',c='';if(r){const tt=totals(r);if(CALCULATING.has(r.id)){t='Calculando…';c='calc';}else if(!r.calc){t='Rascunho';}else if(isStale(r)){t='Desatualizada';c='stale';}else if(tt.warn||tt.fence){t='Traçada com alertas';c='stale';}else{t='Traçada';c='ok';}}el.textContent=READONLY?'Somente leitura':t;el.className='pill '+c;const b=$('btnStale');if(b)b.hidden=READONLY||c!=='stale'||!r||!r.calc||!isStale(r)||CALCULATING.has(r.id);}
-function renderTop(){const vb=document.querySelector('.brand .ver');if(vb)vb.textContent=APP_VERSION+' · Paracatu';const pt=$('projTitle');if(pt&&document.activeElement!==pt)pt.value=S.title||'';renderStatus();renderShell();}
+function renderTop(){const lg=document.querySelector('.rail-logo');if(lg){const t='Estúdio de Rotas · '+APP_VERSION+' · Paracatu · by Davi';lg.dataset.tip=t;lg.setAttribute('aria-label',t);}const pt=$('projTitle');if(pt&&document.activeElement!==pt)pt.value=S.title||'';renderStatus();renderShell();}
 const routeOptTxt=r=>(r.plan?.aid&&S.atends?.[r.plan.aid]?(S.atends[r.plan.aid].nveh>1?'Veículo '+r.plan.veh+' · ':'')+r.dir:(r.group&&!r.name.includes(r.group)?r.group+' · ':'')+r.name)+lockTag(r.id);
 function renderRouteBar(){const sel=$('routeSel');const opt=(r,i)=>`<option value="${i}" ${i===S.cur?'selected':''}>${esc(routeOptTxt(r))}</option>`;
  let h='',seen=new Set();S.routes.forEach((r,i)=>{const A=r.plan?.aid&&S.atends?.[r.plan.aid];if(!A){h+=opt(r,i);return;}if(seen.has(A.id))return;seen.add(A.id);h+=`<optgroup label="🚌 ${esc(A.name)} · ${A.nveh} veículo(s)">${S.routes.map((x,j)=>[x,j]).filter(([x])=>x.plan?.aid===A.id).map(([x,j])=>opt(x,j)).join('')}</optgroup>`;});
- sel.innerHTML=S.routes.length?h:'<option>Nenhuma rota — importe ou abra uma rota vigente</option>';sel.disabled=!S.routes.length;sel.title=sel.selectedOptions[0]?.textContent||'';const r=cur(),m=$('routeMeta');if(!r){m.innerHTML='';return;}const t=totals(r);
+ sel.innerHTML=S.routes.length?h:'<option>Nenhuma rota — importe ou abra uma rota vigente</option>';sel.disabled=!S.routes.length;sel.title=sel.selectedOptions[0]?.textContent||'';const r=cur(),m=$('routeMeta');
+ /* 3.0.1: com os cartões do atendimento à vista, o seletor “Veículo N · IDA” é repetido — sai; trocar de rota fica no ⋯ */
+ const multi=!!(r&&atendOf(r)?.nveh>1),rb=sel.nextElementSibling;sel.hidden=multi;if(rb){rb.textContent=multi?'⇄ Trocar / Rotas':'⋯ Rotas';rb.title=multi?'Trocar para outra rota, nova rota, duplicar, criar volta, excluir':'Nova rota, duplicar, criar volta, excluir';}
+ if(!r){m.innerHTML='';return;}const t=totals(r);
  m.innerHTML=extEdBar(r)+`<span class="chip ${r.dir==='IDA'?'ida':'volta'}">${r.dir==='IDA'?'IDA · coleta':'VOLTA · entrega'}</span>${atendOf(r)?'':`<span class="chip">${t.stops} parada(s)</span><span class="chip">${t.pax} passageiro(s)</span>`}${t.pending?`<span class="chip warn">${t.pending} pendente(s)</span>`:''}${r.start?`<span class="chip" title="Origem fixa: ${esc(r.start.name)}">🚩 ${esc(r.start.name)}</span>`:''}${r.end?`<span class="chip" title="Destino fixo: ${esc(r.end.name)}">🏁 ${esc(r.end.name)}</span>`:''}${!r.plan?.aid&&r.stops.length>1&&!r.cat?'<button class="sm edit-only" data-act="atNew" title="Diga se é IDA, VOLTA ou IDA e VOLTA, o nome, a lotação e quantos veículos — o sistema divide os passageiros">🚌 Configurar atendimento</button>':''}`+atendStrip(r)+flowHtml(r,t);}
 function renderTabs(){if(MOD==='acomp'){const np=CAT_READY?acompList().filter(acFilt).reduce((x,a)=>x+acDevs(a).filter(d=>!d.s.trat).length,0):0;$('tabs').innerHTML=ACOMP_VIEWS.map(([k,l,i])=>`<button class="${ACOMP_VIEW===k?'on':''}" data-act="acompView" data-v="${k}" title="${esc(ACOMP_TIP[k])}">${ic(i)}${l}${k==='tratativa'&&np?`<span class="n">${np}</span>`:''}</button>`).join('')+helpTabBtn();return;}if(MOD==='base'||MOD==='pub'){const V=MOD==='base'?CAT_VIEWS:PUB_VIEWS,cv=MOD==='base'?CAT_VIEW:PUB_VIEW,act=MOD==='base'?'catView':'pubView';const cnt=MOD==='base'&&CAT_READY?{pontos:Object.values(CAT.points).filter(p=>p.status==='proposto').length,analise:0}:{};$('tabs').innerHTML=V.map(([k,l])=>`<button class="${cv===k?'on':''}" data-act="${act}" data-v="${k}" title="${esc(MOD==='base'?CAT_VIEW_TIP[k]||'':'')}">${ic(k)}${l}${cnt[k]?`<span class="n">${cnt[k]}</span>`:''}</button>`).join('')+helpTabBtn();return;}const r=cur();const cnt={stops:r?r.stops.length:0,fences:S.fences.filter(f=>f.on).length,base:CAT_READY?Object.values(CAT.points).filter(p=>p.status==='proposto').length:0};if(READONLY&&!['stops','export','report'].includes(TAB))TAB='stops';$('tabs').innerHTML=TABS.filter(([k])=>!READONLY||['stops','export','report'].includes(k)).map(([k,l])=>`<button class="${TAB===k?'on':''}" data-act="tab" data-t="${k}" title="${esc(TAB_TIP[k]||'')}">${ic(k)}${l}${cnt[k]?`<span class="n">${cnt[k]}</span>`:''}</button>`).join('')+helpTabBtn();}
 function renderTab(){if(PTR_DOWN){PEND.add(renderTab);return;}const b=$('tabBody');const top=b.scrollTop;if(MOD==='acomp'){b.innerHTML=tabAcomp();b.scrollTop=top;helpDecorate(b);return;}if(MOD==='base'){b.innerHTML=tabCat();b.scrollTop=top;helpDecorate(b);return;}if(MOD==='pub'){b.innerHTML=tabPub();b.scrollTop=top;helpDecorate(b);return;}b.innerHTML=(TAB_TIP[TAB]&&!READONLY?`<p class="viewtip">${esc(TAB_TIP[TAB])}</p>`:'')+({stops:tabStops,route:tabRoute,fences:tabFences,base:tabCat,export:tabExport,report:tabReport}[TAB]||tabStops)();b.scrollTop=top;helpDecorate(b);if(typeof planPubSync==='function')planPubSync();}
@@ -6572,13 +6670,14 @@ function atendCreate(){const X=AT;if(!X)return false;atUpd();const c=X.c,P=X.P;i
  changed({fit:true});setTab('stops');X.res(out);}
 /* ---------- faixa do atendimento (acima das etapas) ---------- */
 function atendStrip(r){const A=atendOf(r);if(!A)return '';const rs=atendRoutes(A.id);if(!rs.length)return '';const byV=new Map();for(const x of rs){if(!byV.has(x.plan.veh))byV.set(x.plan.veh,[]);byV.get(x.plan.veh).push(x);}
- const dots=x=>{const F=flowEval(x);return F.map(s=>`<i class="fd ${s.state}"></i>`).join('');};
+ const min=AT_MIN,vs=[...byV],ath=(extra='')=>`<div class="ath"><b>🚌 ${esc(A.name)}${min?` · ${A.nveh} veículo(s)`:''}</b>${extra}<span class="sp"></span>${min?'':'<button class="sm" data-act="atOverview">Visão geral</button><button class="sm edit-only" data-act="atRedo" title="Muda tipo, horários, lotação ou quantidade de veículos (refaz a divisão)">⚙ Reconfigurar</button>'}<button class="sm atmin" data-act="atMin" aria-expanded="${!min}" title="${min?'Mostrar os cartões dos veículos':'Recolher os cartões dos veículos (mais espaço para as paradas)'}" aria-label="${min?'Expandir':'Recolher'} os veículos do atendimento">${min?'▾':'▴'}</button></div>`;
+ if(min)return `<div class="atstrip min">${ath(`<span class="vps">${vs.map(([v,list])=>{const x=list.find(y=>y.dir===r.dir)||list[0];return `<button class="vp${list.includes(r)?' on':''}" data-act="atGo" data-rid="${x.id}" style="--vc:${vehColor(v)}" title="Abrir ${esc(x.name)} (${x.dir})"><i class="vdot" style="background:${vehColor(v)}"></i>V${v}</button>`;}).join('')}</span>`)}</div>`;
  const cap=num(A.cap)||num(S.cfg.capacity)||CAP_DEF,ec=effCap(cap),teto=num(S.cfg.maxRideMin)||0,alvo=rideTarget();
  const cell=x=>{const t=totals(x),m=x.calc&&!isStale(x)?measureRoute(x):null,ok=t.pax>cap?'bad':t.pax>ec?'warn':'ok',rk=!m?'':teto&&m.maxRide>teto+0.5?'bad':alvo&&m.maxRide>alvo+0.5?'warn':'ok';
-  return `<button data-act="atGo" data-rid="${x.id}" class="atr${x===r?' on':''}" title="Abrir ${esc(x.name)} (${x.dir}) · ${t.pax} passageiro(s) de ${cap} lugares${ec<cap?' (meta '+ec+')':''}${m?' · maior tempo a bordo '+dur(m.maxRide)+(alvo?' (alvo '+alvo+' / teto '+teto+' min)':''):''}"><span class="chip ${x.dir==='IDA'?'ida':'volta'}">${x.dir}</span><span class="occ ${ok}"><span class="n">${t.pax}<small>/${ec}</small></span><i class="bar"><i style="width:${clamp(t.pax/cap*100,0,100)}%"></i></i></span><span class="ride ${rk}">${m?'⏱ '+dur(m.maxRide):'⏱ —'}</span><span class="km">${m?nf(m.kmOp)+' km':''}</span><span class="fds">${dots(x)}</span></button>`;};
- return `<div class="atstrip"><div class="ath"><b>🚌 ${esc(A.name)}</b><span class="sp"></span><button class="sm" data-act="atOverview">Visão geral</button><button class="sm edit-only" data-act="atRedo" title="Muda tipo, horários, lotação ou quantidade de veículos (refaz a divisão)">⚙ Reconfigurar</button></div>
- <p class="atsub">${esc(KIND_TXT[A.kind]||A.kind)}${A.date?' · '+new Date(A.date+'T12:00').toLocaleDateString('pt-BR'):''} · ${A.nveh} veículo(s) de ${cap} lugares${ec<cap?' · meta de lotação '+ec:''}${alvo?' · alvo a bordo '+alvo+' min (teto '+teto+')':''}</p>
- <div class="atcards" role="list">${[...byV].map(([v,list])=>`<div class="atc${list.includes(r)?' on':''}" role="listitem" style="--vc:${vehColor(v)}"><b class="vn"><i class="vdot" style="background:${vehColor(v)}"></i>${A.nveh>1?'Veículo '+v:'Rota'}</b><div class="atrs">${list.map(cell).join('')}</div></div>`).join('')}</div></div>`;}
+  return `<button data-act="atGo" data-rid="${x.id}" class="atr${x===r?' on':''}" title="Abrir ${esc(x.name)} (${x.dir}) · ${t.pax} passageiro(s) de ${cap} lugares${ec<cap?' (meta '+ec+')':''}${m?' · maior tempo a bordo '+dur(m.maxRide)+(alvo?' (alvo '+alvo+' / teto '+teto+' min)':''):''}"><span class="chip ${x.dir==='IDA'?'ida':'volta'}">${x.dir}</span><span class="occ ${ok}"><span class="n">${t.pax}<small>/${ec}</small></span><i class="bar"><i style="width:${clamp(t.pax/cap*100,0,100)}%"></i></i></span><span class="ride ${rk}">${m?'⏱ '+dur(m.maxRide):'⏱ —'}</span><span class="km">${m?nf(m.kmOp)+' km':'—'}</span></button>`;};
+ return `<div class="atstrip">${ath()}
+ <p class="atsub">${esc(KIND_TXT[A.kind]||String(A.kind||'').replace(/[_/]+/,' e '))}${A.date?' · '+new Date(A.date+'T12:00').toLocaleDateString('pt-BR'):''} · ${A.nveh} veículo(s) de ${cap} lugares${ec<cap?' · meta de lotação '+ec:''}${alvo?' · alvo a bordo '+alvo+' min (teto '+teto+')':''}</p>
+ <div class="atcards" role="list">${vs.map(([v,list])=>`<div class="atc${list.includes(r)?' on':''}" role="listitem" style="--vc:${vehColor(v)}"><b class="vn"><i class="vdot" style="background:${vehColor(v)}"></i>${A.nveh>1?'Veículo '+v:'Rota'}</b><div class="atrs">${list.map(cell).join('')}</div></div>`).join('')}</div></div>`;}
 function atendOverview(){const r=cur(),A=atendOf(r);if(!A)return;const rs=atendRoutes(A.id);
  const rows=rs.map(x=>{const t=totals(x),sch=schedule(x),F=flowEval(x),m=x.calc&&!isStale(x)?measureRoute(x):null;return `<tr><td><i class="vdot" style="background:${vehColor(x.plan.veh)}"></i> <b>${A.nveh>1?'Veículo '+x.plan.veh:'—'}</b> <span class="chip ${x.dir==='IDA'?'ida':'volta'}">${x.dir}</span></td><td class="r ${t.pax>A.cap?'over':''}">${t.pax} / ${A.cap}</td><td class="r">${t.stops}</td><td class="r">${m?nf(m.kmOp):'—'}</td><td class="r">${m?nf(m.kmIdle):'—'}</td><td class="r">${m?dur(m.routeMin):'—'}</td><td class="r">${m?dur(m.maxRide):'—'}</td><td>${sch?.abs?clock(sch.nodes[0].dep)+' → '+clock(sch.nodes.at(-1).arr):'—'}</td><td>${F.map((s,i)=>`<span class="chip ${s.state==='done'?'ok':s.state==='cur'?'warn':''}" title="${FLOW_NAMES[i]}">${i+1}</span>`).join('')}</td><td><button class="sm" data-act="atGo" data-rid="${x.id}">Abrir</button></td></tr>`;}).join('');
  const tot=rs.reduce((a,x)=>{const m=x.calc&&!isStale(x)?measureRoute(x):null;if(m){a.op+=m.kmOp;a.idle+=m.kmIdle;a.n++;}return a;},{op:0,idle:0,n:0});
@@ -6599,7 +6698,8 @@ function renderSiblings(r){if(!MAP)return;if(!LY.sib)LY.sib=L.layerGroup().addTo
  for(const x of atendRoutes(A.id)){if(x===r||x.dir!==r.dir)continue;const col=vehColor(x.plan.veh);
   for(const l of x.calc&&!isStale(x)?x.calc.legs:[])if(l.kind==='op'&&l.geom?.length>1)L.polyline(l.geom,{color:col,weight:3.5,opacity:.45,interactive:false,pane:'pIdle'}).addTo(LY.sib);
   for(const s of x.stops)if(!s.pending&&validLL(s))L.circleMarker([s.lat,s.lon],{radius:6,color:'#fff',weight:2,fillColor:col,fillOpacity:.9,pane:'pIdle'}).bindTooltip('Veículo '+x.plan.veh+' · '+esc(s.name)+' ('+(s.pax?.length||1)+' pass.)').on('click',()=>{S.cur=S.routes.indexOf(x);renderAll();}).addTo(LY.sib);}}
-const AT_ACT={atGo:el=>{const i=S.routes.findIndex(x=>x.id===el.dataset.rid);if(i<0)return;if($('dlg').open)$('dlg').close();S.cur=i;SEL.stop=null;renderAll();fitRoute();},atOverview:()=>atendOverview(),atRedo:()=>atendRedo(),atNew:()=>atendFromCur()};
+let AT_MIN=(()=>{try{return localStorage.getItem('rota-studio-atmin')==='1';}catch{return false;}})();
+const AT_ACT={atMin:()=>{AT_MIN=!AT_MIN;try{localStorage.setItem('rota-studio-atmin',AT_MIN?'1':'0');}catch{}renderRouteBar();},atGo:el=>{const i=S.routes.findIndex(x=>x.id===el.dataset.rid);if(i<0)return;if($('dlg').open)$('dlg').close();S.cur=i;SEL.stop=null;renderAll();fitRoute();},atOverview:()=>atendOverview(),atRedo:()=>atendRedo(),atNew:()=>atendFromCur()};
 
 /* ===================== 2.10 — IDA ⇄ VOLTA: levar as alterações para o outro sentido =====================
  Cada rota de um par (IDA e VOLTA criadas juntas, “Criar VOLTA a partir desta rota”, veículo de um atendimento ou mesma linha)
@@ -6680,15 +6780,15 @@ const HELP=[
 <li>Para uma demanda nova (formulário de solicitação), use o Planejamento: <b>Importar</b> → planilha → pontos → <b>⚡ Otimizar</b> → <b>💾 Salvar na Base ativa</b>.</li>
 <li>Divulgação: escolha a frente, o material e imprima ou baixe.</li></ol>
 <p>Em cada tela, o botão <b>?</b> ao lado do título explica aquela função. O botão <b>❓ Dúvidas</b> no trilho abre esta central, com busca e o assistente.</p>`},
-{id:'g-tela',m:'geral',t:'A tela: trilho, painel que recolhe, busca Ctrl K e atalhos',k:'tela layout menu lateral trilho painel recolher esconder mapa maior tela cheia busca ctrl k comando atalho teclado colchete ajustes configuracoes avatar conta 2.19',at:['h:atalhos do teclado'],b:`
+{id:'g-tela',m:'geral',t:'A tela: trilho, painel que recolhe, busca Ctrl K e atalhos',k:'tela layout menu lateral trilho painel recolher esconder mapa maior tela cheia busca ctrl k comando atalho teclado colchete ajustes configuracoes avatar conta 2.19 3.0.1 sub-abas abas no topo recolher veiculos trocar rota',at:['h:atalhos do teclado'],b:`
 <p>Desde a 2.19 a tela tem três partes:</p>
 <ul><li><b>Trilho à esquerda</b>: os módulos (Planejar, Base, Divulgar, Campo). Embaixo, <b>⚙ Ajustes</b> (Configurações: Conta, Integrações, Dados e, para o administrador, Equipe e Manutenção), <b>❓ Dúvidas</b> e o círculo com as suas iniciais (sua conta).</li>
-<li><b>Topo</b>: onde você está (módulo › rota aberta — clique na rota para trocar), a <b>busca Ctrl K</b>, o selo de gravação, <b>💾 Dados / 🟢 Ao vivo</b> e <b>Importar</b>.</li>
-<li><b>Painel</b> com as abas do módulo. A alça <b>‹</b> na borda direita do painel, ou a tecla <b>[</b>, recolhe o painel e o mapa ocupa a tela toda; a alça <b>›</b> traz de volta. O Estúdio lembra a escolha neste computador.</li></ul>
+<li><b>Topo</b>: as <b>abas do módulo aberto</b> (ex.: Paradas, Rota, Cercas, Exportar, Relatório no Planejar; Painel, Viagens, Tratativas, Segurança, Configurações no Campo) com o <b>?</b> da tela, a <b>busca Ctrl K</b>, o selo de gravação, <b>💾 Dados / 🟢 Ao vivo</b> e <b>Importar</b>. Em tela estreita as abas rolam para o lado. O nome, a versão e a assinatura aparecem ao passar o mouse (ou focar) no logotipo do alto do trilho e em ⚙ Ajustes → Conta. No painel do Planejamento, <b>↶</b> desfaz a última edição (Ctrl Z).</li>
+<li><b>Painel</b> do módulo, que rola inteiro (atendimento, veículos e paradas). A alça <b>‹</b> na borda direita do painel, ou a tecla <b>[</b>, recolhe o painel e o mapa ocupa a tela toda; a alça <b>›</b> traz de volta. O Estúdio lembra a escolha neste computador.</li></ul>
 <p><b>Base ativa</b>: a faixa de saúde mostra vigentes, repetidos, pontos a vistoriar e alertas (clique para filtrar). <b>＋ Nova</b> cria uma linha; <b>Lote ▾</b> tem os horários e dias em lote e os horários do rotograma; o <b>⋯</b> da faixa “No mapa” guarda as visualizações salvas e a cor das linhas.</p>
 <p><b>Busca Ctrl K</b>: digite o código da linha (ADM 01), do ponto (P0012, vale também o código antigo), o bairro, o nome de uma rota do Planejamento ou uma ação (Importar, Cenários, Recalcular, Configurações…). Setas escolhem, Enter abre, Esc fecha.</p>
 <p><b>Atalhos</b>: Ctrl K (busca), [ (painel), Ctrl Z (desfazer), Esc (sair do modo de edição no mapa), Enter (concluir desenho), ? (lista de atalhos). Todo atalho também tem botão.</p>
-<p><b>No Planejamento</b>, os cartões de veículo mostram a lotação (passageiros / meta de lotação, barra âmbar acima da meta e vermelha acima da lotação), o maior tempo a bordo e o KM. A faixa de indicadores do mapa mostra o KM operacional do sentido, o KM ocioso, o <b>tempo a bordo com o alvo e o teto</b> (ex.: alvo 50 / teto 60 min) e a lotação. Depois de otimizar, o painel mostra a tabela <b>Antes × Depois</b> (verde = melhorou, vermelho = piorou).</p>
+<p><b>No Planejamento</b>, os cartões de veículo mostram a lotação (passageiros / meta de lotação, número e barra âmbar acima da meta e vermelhos acima da lotação), o maior tempo a bordo (vermelho acima do teto) e o KM. A bolinha é só a cor do veículo no mapa. O botão <b>▴</b> recolhe os cartões numa linha (V1 · V2 · V3 — clique para abrir o veículo) e <b>▾</b> mostra de novo. Com o atendimento aberto, o seletor de rotas sai; para abrir outra rota use <b>⇄ Trocar / Rotas</b>. Ao trocar para Base, Divulgar ou Campo, o mapa mostra só o daquele módulo (o Planejamento volta ao voltar). A faixa de indicadores do mapa mostra o KM operacional do sentido, o KM ocioso, o <b>tempo a bordo com o alvo e o teto</b> (ex.: alvo 50 / teto 60 min) e a lotação. Depois de otimizar, o painel mostra a tabela <b>Antes × Depois</b> (verde = melhorou, vermelho = piorou).</p>
 <p><b>Dados</b>: sem base viva e sem pasta, o botão some do topo — fica em ⚙ Ajustes → Dados. Com base viva aparece o selo <b>Ao vivo</b>.</p>
 <p>Quando um mapa de fundo não carrega, o Estúdio troca sozinho e mostra um ponto âmbar no botão de camadas (passe o mouse para ler o motivo).</p>`},
 {id:'g-conceitos',m:'geral',t:'Conceitos: frente, grupo, linha, viagem, versão e ponto',k:'glossario conceito frente servico cliente grupo linha viagem versao itinerario ponto situacao status vigente',at:[],b:`
@@ -8612,7 +8712,8 @@ function cfgNav(k){const b=$('dlgBody'),d=$('dlg');if(!b||!d)return;b.querySelec
  b.prepend(n);n.querySelector('.on')?.focus({preventScroll:true});const tl=CFG_TABS.find(x=>x[0]===k)?.[1]||'';$('dlgTitle').textContent='Configurações · '+tl;$('dlgTitle').title='Configurações · '+tl;}
 function cfgConta(){const id=ident();
  return `<div class="sec"><h3>👤 Usuário deste computador</h3><div class="me-card"><i class="av">${esc(initials(userName())||'·')}</i><div><b>${esc(userName()||'—')}</b><small>${[id?.mat?'mat. '+esc(id.mat):'',id?.email?esc(id.email):''].filter(Boolean).join(' · ')||'sem identificação'}</small>${AUTH.g?`<small>🔐 Entrou com o Google · perfil <b>${esc(AUTH.perfil)}</b></small>`:''}</div></div><div class="row"><button class="sm" data-act="identSwap">Trocar de usuário</button></div></div>
- <div class="sec"><h3>📜 Histórico de alterações</h3><p class="small muted">Quem alterou o quê e quando — todas as pessoas, no Planejamento e na Base ativa.</p><div class="row"><button class="primary" data-act="histOpen">📜 Abrir o histórico</button><button data-act="recebOpen">📥 Recebidos do campo</button></div></div>`;}
+ <div class="sec"><h3>📜 Histórico de alterações</h3><p class="small muted">Quem alterou o quê e quando — todas as pessoas, no Planejamento e na Base ativa.</p><div class="row"><button class="primary" data-act="histOpen">📜 Abrir o histórico</button><button data-act="recebOpen">📥 Recebidos do campo</button></div></div>
+ <p class="small muted">Estúdio de Rotas <b>${esc(APP_VERSION)}</b> · Paracatu · by Davi</p>`;}
 const cfgEquipe=()=>`<div class="sec"><h3>👥 Usuários e permissões</h3><p class="small muted">Quem entra com o Google, o perfil de cada um (ADMIN, ANALISTA, SEGURANCA, CAMPO) e a matriz de permissões.</p><div class="row"><button class="primary" data-act="usrOpen">👥 Usuários e permissões</button></div></div>`;
 const cfgManut=()=>`<div class="sec"><h3>🔗 Reconciliar histórico</h3><p class="small muted">Liga cadastros antigos (nome e matrícula) ao e-mail oficial do Google. Mostra a prévia antes de aplicar.</p><button data-act="reconOpen">🔗 Reconciliar histórico</button></div>
  <div class="sec"><h3>🧹 Compactar a base</h3><p class="small muted">O servidor guarda uma cópia selada antes e tira o que não é mais usado. Só com todas as abas na versão atual.</p><button data-act="compOpen">🧹 Compactar a base</button></div>`;
@@ -8688,7 +8789,9 @@ function createReturn(r){const n=clone(r);Object.assign(n,{id:uid('r'),dir:r.dir
  /* a volta não pode herdar a ligação da ida: liga na viagem do outro sentido da mesma linha (se houver só uma) */
  if(src){const opp=Object.values(CAT.routes).filter(t=>t.status!=='arquivada'&&t.dir===n.dir&&norm(t.client||'')===norm(src.client||'')&&norm(t.code||'')===norm(src.code||''));if(opp.length===1){n.cat={rid:opp[0].id,vid:null};opT=opp[0].time||'';}if(src.code)n.group=src.code;}
  n.sched={mode:n.dir==='IDA'?'arrive':'depart',time:opT||(n.dir==='IDA'?'07:30':'17:30'),dwell:r.sched?.dwell};n.pair=r.id;r.pair=n.id;delete n.pairAsk;delete n.pairNo;r.pairBase=pairSnap(r);n.pairBase=pairSnap(n);return n;}
-function routeMenu(ev){const r=cur();const items=[{label:'➕ Nova rota (IDA)',fn:()=>addRoute(newRoute('Nova rota IDA','IDA'))},{label:'➕ Nova rota (VOLTA)',fn:()=>addRoute(newRoute('Nova rota VOLTA','VOLTA'))}];
+function routeMenu(ev){const r=cur();const go=i=>{S.cur=i;SEL.stop=null;SEL.leg=null;SEL.editLeg=null;LY.temp?.clearLayers();changed({fit:true});};
+ const sw=$('routeSel').hidden?S.routes.map((x,i)=>[x,i]).filter(([x])=>!x.plan?.aid||x.plan.aid!==r?.plan?.aid).filter(([x],k,a)=>!x.plan?.aid||a.findIndex(([y])=>y.plan?.aid===x.plan.aid)===k).map(([x,i])=>({label:'↪ '+esc(x.plan?.aid&&S.atends?.[x.plan.aid]?S.atends[x.plan.aid].name+' · '+x.dir:routeOptTxt(x)),fn:()=>go(i)})):[];
+ const items=[...(sw.length?[{title:'Trocar de rota'},...sw,'-']:[]),{label:'➕ Nova rota (IDA)',fn:()=>addRoute(newRoute('Nova rota IDA','IDA'))},{label:'➕ Nova rota (VOLTA)',fn:()=>addRoute(newRoute('Nova rota VOLTA','VOLTA'))}];
  if(r)items.push('-',{label:'⧉ Duplicar rota',fn:()=>{const n=clone(r);n.id=uid('r');for(const k of['pair','pairBase','pairAsk','pairNo'])delete n[k];n.name+=' (cópia)';n.stops=n.stops.map(s=>({...s,id:uid('s')}));n.legs={};n.calc=null;addRoute(n);}},{label:'↩ Criar '+(r.dir==='IDA'?'VOLTA':'IDA')+' a partir desta rota',fn:async()=>{const n=createReturn(r);addRoute(n);toast('Rota de '+n.dir.toLowerCase()+' criada e sendo otimizada — mão única e garagem fazem o caminho diferente do inverso.','ok',7000);if(n.stops.filter(s=>validLL(s)).length>1){await optimizeRoute(n);if(!n.calc)runRecalc(n,true);}}},...(pairOf(r)?[{label:'⇄ Levar as alterações desta rota para a '+pairOf(r).dir,fn:()=>pairDlg(r,pairOf(r),false)}]:[]),{label:'🚌 Dividir em veículos (lotação)',fn:openFleetSplit},{label:'🧭 Traçar todas as rotas',fn:()=>traceAll()},'-',{label:'💾 Salvar na Base ativa'+(r.cat?.rid&&CAT.routes[r.cat.rid]?' (nova versão)':''),fn:()=>catSaveDlg(r)},{label:'🔍 Vistoria / pacote para o celular',fn:fieldPackDlg},'-',{label:'🗑 Excluir esta rota',fn:()=>dialog('Excluir rota',`<p style="margin-top:0">Excluir a rota <b>${esc(r.name)}</b> (${esc(r.dir)}, ${r.stops.length} parada(s))?</p><p class="muted small">Uma versão automática é guardada antes (🕘 Versões), para recuperar se precisar. A Base ativa não muda.</p>`,[['Cancelar',null],['🗑 Excluir a rota',()=>{(async()=>{await snapTake('antes de excluir a rota '+r.name,true);const i=S.routes.indexOf(r);if(i<0)return;S.routes.splice(i,1);S.cur=clamp(S.cur,0,Math.max(0,S.routes.length-1));UNDO.length=0;changed({fit:true});toast('✓ Rota “'+r.name+'” excluída.','ok',5000);})();},'danger']])});
  const b=ev.target.getBoundingClientRect();showCtx({clientX:b.left,clientY:b.bottom+4},items);}
 function addRoute(r){if(MOD!=='plan')setMod('plan');S.routes.push(r);S.cur=S.routes.length-1;SEL.stop=null;changed({fit:true});setTab('stops');}
