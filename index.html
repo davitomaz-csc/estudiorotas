@@ -710,7 +710,7 @@ body:not([data-mod="base"]) .ptleg{display:none!important}
 <script>
 'use strict';
 /* ===================== Utilidades ===================== */
-const APP_VERSION='2.18.3';
+const APP_VERSION='2.18.4';
 /* lotação padrão das viagens (2.8: 42 lugares) */
 const CAP_DEF=42;
 /* cores do mapa (2.7.1): IDA azul e VOLTA verde-água, sempre em linha contínua; deslocamento ocioso (garagem) tracejado cinza-escuro */
@@ -932,7 +932,9 @@ async function vhFetch(path,body){let last=null;
  const err=last||new Error('nenhum servidor de rotas ligado');err.noServer=true;throw err;}
 function provNotice(){const p=vhList().find(x=>x.id===VH_LAST);if(!p)return;if(p.id==='fossgis'&&ownUrl())toast('Servidor próprio sem resposta — usando o servidor público (FOSSGIS) por enquanto.','warn',8000);else if(p.id==='own')toast('Servidor próprio de rotas respondeu de novo.','ok',5000);}
 /* ---------- Geoapify (reserva de rotas e caminhada; também fonte de endereços) ---------- */
-const gaKey=()=>String(KEYS.geoapify||'').trim();
+/* 2.18.4: chave da equipe vinda do script (ScriptProperties GEOAPIFY_KEY) — só em memória, só para quem tem o Planejamento; a deste navegador (KEYS) tem prioridade */
+let SRV_KEYS={};
+const gaKey=()=>String(KEYS.geoapify||SRV_KEYS.geoapify||'').trim();
 const gaOn=kind=>!!gaKey()&&!(PDOWN.geoapify>Date.now())&&(kind==='geo'||PROV.geoapify.route!==false);
 function gaFail(e){if(e.status===401||e.status===403){PDOWN.geoapify=Date.now()+600000;toast('Geoapify: a chave foi recusada. Confira em ⚙ Serviços.','bad',9000);}else if(e.status===429){PDOWN.geoapify=endOfDay();toast('Geoapify: cota do dia esgotada no servidor deles. Volta a funcionar amanhã.','warn',9000);}else if(!e.status)PDOWN.geoapify=Date.now()+120000;renderProvDot();}
 /* rota com pontos “break”: um trecho do Estúdio de Rotas por par de paradas (pontos de passagem são juntados) */
@@ -983,7 +985,7 @@ function openProviders(){const g=PROV.geo,st=provState();const premOpts=`<option
   <label class="check"><input type="checkbox" id="pvFg" ${PROV.fossgis.on!==false?'checked':''}> <span><b>2. FOSSGIS público</b> — piloto e reserva. Limite de 1 consulta por segundo, sem garantia e com uso comercial restrito (<a href="https://www.fossgis.de/arbeitsgruppen/osm-server/nutzungsbedingungen/" target="_blank" rel="noopener">termos</a>).</span></label>
   <label class="check"><input type="checkbox" id="pvGaR" ${PROV.geoapify.route!==false?'checked':''}> <span><b>3. Geoapify</b> — reserva quando os dois acima estão fora do ar (usa a chave abaixo; sem cercas, meia-volta e lado da porta).</span></label>
   <label class="check"><input type="checkbox" data-pv="osrm" ${S.cfg.fallbackOsrm?'checked':''}> <span><b>4. OSRM público</b> — último recurso por trecho (perfil carro).</span></label><p class="muted small">Sem nenhum: o trecho fica em linha reta (vermelho) até o servidor voltar.</p><p id="pvTestRes" class="small"></p></div>
- <div class="sec"><h3>Chave Geoapify <span class="hint">rotas de reserva e endereços</span></h3><div class="row" style="flex-wrap:nowrap"><input id="pvGaKey" type="password" placeholder="cole a chave criada em myprojects.geoapify.com" value="${esc(gaKey())}" style="flex:1"><button class="sm" data-act="pvTest" data-k="geoapify">Testar</button></div>
+ <div class="sec"><h3>Chave Geoapify <span class="hint">rotas de reserva e endereços</span></h3><div class="row" style="flex-wrap:nowrap"><input id="pvGaKey" type="password" placeholder="cole a chave criada em myprojects.geoapify.com" value="${esc(KEYS.geoapify||'')}" style="flex:1"><button class="sm" data-act="pvTest" data-k="geoapify">Testar</button></div>${SRV_KEYS.geoapify?'<p class="small" style="color:#15803d;margin:6px 0 0">✓ Chave Geoapify ativa (servidor / equipe)'+(String(KEYS.geoapify||'').trim()?' — este navegador usa a chave própria acima':'')+'</p>':''}${AUTH.g&&can('admin')?'<div class="row" style="gap:6px;margin-top:6px"><button class="sm" data-act="srvKeySave">Salvar chave para a equipe (servidor)</button><span class="small muted">grava a chave do campo acima no script (só o administrador; quem tem o Planejamento passa a usá-la)</span></div>':''}
   <p class="muted small">Plano gratuito: ${fmtN(QUOTA_OF('geoapify'))} créditos por dia, com uso comercial permitido. Endereço = 1 crédito; rota = 1 por trecho; matriz = maior lado × menor lado (até 10). Se a cota acabar, o sistema avisa e passa para o próximo serviço; se o uso médio chegar perto da cota, sugere o plano pago ou o servidor próprio.</p></div>
  <div class="sec"><h3>Endereços</h3><label class="field"><span>Fonte com chave própria (mais precisa no número da casa)</span><select id="pvPrem">${premOpts}</select></label><div class="row" id="pvPremKeyRow" style="flex-wrap:nowrap;${g.prem&&g.prem!=='geoapify'?'':'display:none'}"><input id="pvPremKey" type="password" placeholder="chave da API escolhida" value="${esc(g.prem&&g.prem!=='geoapify'?KEYS[g.prem]||'':'')}" style="flex:1"></div>
   <label class="check"><input type="checkbox" id="pvCep" ${g.cep!==false?'checked':''}> Correios/ViaCEP e AwesomeAPI (CEP e trecho da rua)</label><label class="check"><input type="checkbox" id="pvPh" ${g.photon!==false?'checked':''}> Photon (tolera erro de digitação)</label><label class="check"><input type="checkbox" id="pvNom" ${g.nominatim!==false?'checked':''}> Nominatim/OpenStreetMap (rua e número)</label>
@@ -1686,7 +1688,11 @@ async function applyAtend(X,row){const V=X.r,I=V._atend,A=S.atends?.[I.aid];
   for(const n of created)if(!n.calc||isStale(n))await runRecalc(n,true);
   const tt=created.map(totals),ms=created.map(n=>n.calc&&!isStale(n)?measureRoute(n,X.ctx.lam):null),na=created.reduce((a,n)=>a+n.stops.filter(s=>!s.pending&&validLL(s)).length,0);
   const au=old.length+' → '+created.length+' veículo(s) · paradas '+nb+' → '+na+' · a bordo: '+ms.map((m,i)=>'V'+(i+1)+' '+(m?dur(m.maxRide):'—')).join(' / ')+' · lotação: '+created.map(paxCount).join(' / ')+' · '+nf(tt.reduce((a,t)=>a+t.kmOp,0))+' km operacional + '+nf(tt.reduce((a,t)=>a+t.kmIdle,0))+' km ocioso'+(pend.length?' · '+pend.length+' pendente(s) no Veículo 1 (Limbo)':'')+'.';
-  created[0]._lastOpt={name:row.name,at:Date.now(),audit:au};scheduleSave();renderAll();toast('✓ Atendimento reorganizado (“'+row.name+'”). '+au+' Para voltar: ↶ Desfazer.','ok',16000);}
+  /* 2.18.4: atendimento de dois sentidos — só o sentido aberto foi reorganizado */
+  const op=I.dir==='VOLTA'?'IDA':'VOLTA',two=S.routes.some(x=>x.plan?.aid===I.aid&&x.dir===op),warn=two?'⚠ IDA e VOLTA: só a '+I.dir+' foi reorganizada. A '+op+' deste atendimento não mudou — revise a '+op+' (veículos, pontos e passageiros).':'';
+  created[0]._lastOpt={name:row.name,at:Date.now(),audit:au+(warn?' '+warn:'')};scheduleSave();renderAll();
+  if(warn)dialog('Atendimento reorganizado — revise a '+op,`<p>✓ “${esc(row.name)}” aplicado na <b>${esc(I.dir)}</b>. ${esc(au)}</p><p class="scnWarn" style="margin:10px 0;padding:8px 10px;border-radius:6px;background:#fff7e0;border:2px solid #eda100;font-weight:600">${esc(warn)}</p><p class="small muted">Para voltar: ↶ Desfazer.</p>`);
+  else toast('✓ Atendimento reorganizado (“'+row.name+'”). '+au+' Para voltar: ↶ Desfazer.','ok',16000);}
  catch(e){console.error(e);toast('Não consegui aplicar no atendimento: '+e.message,'bad',12000);}}
 
 /* ===================== 2.9 — métodos de roteirização de fretamento =====================
@@ -2426,7 +2432,7 @@ function sheetStep1(){const W=SHEET;const nGroups=W.F.group?new Set(W.rows.map(r
  dialog('Planilha de endereços · '+esc(W.file),`<p class="muted">${W.rows.length} linha(s) de dados${W.hi?' (cabeçalho na linha '+(W.hi+1)+')':''}. Confira as colunas — o sistema monta o endereço, localiza no mapa e deixa você criar a rota e/ou baixar o KML para o My Maps.</p>
   <div class="grid3">${sheetMapHtml()}</div><div class="grid2" style="margin-top:6px"><div class="row" style="gap:6px"><label class="field" style="flex:1"><span>Cidade quando a planilha não informa</span><input id="shCity" value="${esc(W.city)}"></label><label class="field" style="width:70px"><span>UF</span><select id="shUF">${Object.keys(UF_NAME).map(k=>`<option ${k===(W.uf||'MG')?'selected':''}>${k}</option>`).join('')}</select></label></div><div class="small muted" style="align-self:end">${W.F.group?'Serão criadas <b>'+nGroups+'</b> rota(s), uma por valor da coluna “'+esc(W.F.group)+'”.':'Uma rota só. Para separar por turno/rota, escolha a coluna em “Separar rotas por”.'}</div></div>
   <h3 style="margin:12px 0 4px;font-size:13px">Prévia</h3><div id="shPrev" class="scn-wrap">${sheetPreview()}</div>${geoKeyHtml()}${pointOptsHtml(0,W.pm,W.radius)}`,
-  [['Cancelar',null],['Baixar modelo',()=>{sheetTemplate();return false;}],['Localizar endereços →',()=>{sheetReadMap();SHEET.res=null;sheetGeocode();return false;}]]);
+  [['Cancelar',null],['Baixar modelo',()=>{sheetTemplate();return false;}],['Localizar endereços →',()=>{sheetReadMap();sheetRegeo();return false;}]]);
  $('dlg').classList.add('wide');qsa('#dlgBody [data-smap]').forEach(s=>s.onchange=()=>{sheetReadMap();sheetStep1();});}
 function sheetReadMap(){const W=SHEET;const F={};qsa('#dlgBody [data-smap]').forEach(s=>{if(s.value)F[s.dataset.smap]=s.value;});W.F=F;const c=$('shCity')?.value;if(c!=null)W.city=cleanText(c)||'Paracatu';const u=$('shUF')?.value;if(u)W.uf=u;geoKeyRead();const o=readPointOpts();W.pm=o.pm;W.radius=o.radius;}
 /* ---------- localização ---------- */
@@ -2450,6 +2456,13 @@ const GEO_CK=20,GEO_MAX=20000;
 const sheetSig=W=>hash36(W.file+'|'+W.rows.length+'|'+JSON.stringify(W.rows.slice(0,3))+JSON.stringify(W.rows.slice(-3)));
 function gazExactList(){const L=gazBuild().list.slice();if(CAT_READY)for(const p of Object.values(CAT.points)){if(!validLL(p)||['inativo','reprovado'].includes(p.status))continue;const sp=splitName(p.name||'');if(!sp.street||!+sp.number)continue;L.push({toks:streetToks(sp.street),bairro:norm(sp.bairro||p.bairro||''),num:+sp.number,lat:p.lat,lon:p.lon,name:p.name});}return L;}
 function gazExact(a,L){const n=+a.number||0;if(!n||!a.street)return null;const T=streetToks(a.street),nb=norm(a.bairro);if(!T.length)return null;const x=L.find(x=>x.num===n&&streetSim(T,x.toks)>=0.9&&(!nb||!x.bairro||x.bairro===nb||x.bairro.includes(nb)||nb.includes(x.bairro)));return x?{q:'base',lat:x.lat,lon:x.lon,label:'mesmo endereço do ponto '+x.name,src:'Base'}:null;}
+/* 2.18.4: localizar de novo preserva por padrão as linhas corrigidas pela IA ou à mão (sheetGeocode pula linha com res); sobrescrever só com confirmação */
+const sheetKept=r=>!!r&&(r.q==='ia'||r.q==='manual'||!!r.man);
+function sheetRegeo(){const W=SHEET,old=Array.isArray(W.res)&&W.res.length===W.rows.length?W.res:null,keep=old?old.map(r=>sheetKept(r)?r:null):null,n=keep?keep.filter(Boolean).length:0;
+ if(!n){W.res=null;sheetGeocode();return;}
+ const go=k=>{W.res=k;sheetGeocode();if(k)toast('✓ '+n+' endereço(s) corrigido(s) por IA/manualmente foram preservados.','ok',9000);};
+ dialog('Correções preservadas',`<p>⚠ <b>${n} endereço(s) corrigido(s) por IA/manualmente foram preservados</b> — a nova localização pula essas linhas.</p><p class="small muted">Para localizar também essas linhas de novo, use “Sobrescrever correções…” (pede confirmação; as correções serão perdidas).</p>`,
+  [['Sobrescrever correções…',()=>{dialog('Sobrescrever correções?',`<p>As <b>${n}</b> linha(s) corrigida(s) por IA/manualmente serão localizadas de novo e <b>as correções serão perdidas</b>.</p>`,[['Não, preservar',()=>{go(keep);return false;}],['Sim, sobrescrever',()=>{go(null);return false;}]]);return false;}],['Localizar preservando as correções',()=>{go(keep);return false;}]]);}
 async function sheetGeocode(){const W=SHEET;W.stop=false;if(!Array.isArray(W.res)||W.res.length!==W.rows.length)W.res=new Array(W.rows.length);const cache=new Map();const cnt={};let done=0,net=true,fresh=0,hits=0;const t0=Date.now(),gc=(await IDB.get('rs2-geocache'))||{},EX=gazExactList();
   const ckpt=async fin=>{try{const ks=Object.keys(gc);if(ks.length>GEO_MAX)for(const x of ks.sort((a,b)=>String(gc[a].at).localeCompare(String(gc[b].at))).slice(0,ks.length-GEO_MAX))delete gc[x];await IDB.set('rs2-geocache',gc);if(fin)await IDB.del('sheetJob');else await IDB.set('sheetJob',{sig:sheetSig(W),file:W.file,F:W.F,city:W.city,uf:W.uf,res:W.res,at:nowIso()});}catch{}};
  const paint=()=>{const el=$('shProg');if(!el)return;const n=W.rows.length,eta=done?Math.round((Date.now()-t0)/done*(n-done)/1000):0;el.innerHTML=`<b>${done}/${n}</b> linha(s) · ${Object.entries(cnt).map(([q,c])=>`<span class="chip ${GEO_Q[q][1]}">${c} ${GEO_Q[q][0].split(' (')[0].split(' —')[0].toLowerCase()}</span>`).join(' ')}${hits?' <span class="chip">'+hits+' do cache</span>':''}${done<n?'<br><span class="muted small">Faltam ~'+(eta>90?Math.round(eta/60)+' min':eta+' s')+' (os serviços gratuitos aceitam poucas consultas por segundo).</span>':''}<div class="idxbar" style="margin-top:6px"><i style="width:${n?done/n*100:0}%"></i></div>`;};
@@ -2460,14 +2473,14 @@ async function sheetGeocode(){const W=SHEET;W.stop=false;if(!Array.isArray(W.res
  await ckpt(true);sheetStep3();}
 /* chave opcional de geocodificação (fica só neste navegador) */
 /* 2.18.2 — aviso objetivo quando não há chave do Geoapify (a ferramenta guarda a chave em KEYS.geoapify; não aparece se existir) */
-function geoapifyWarn(){return String(KEYS.geoapify||'').trim()?'':'<p class="small" style="margin:8px 0;padding:6px 8px;border-radius:6px;background:#fff7e0;border:1px solid #eda100">⚠ Sem a chave gratuita do Geoapify (3.000 consultas/dia), o número da casa em Paracatu fica menos preciso. <button class="sm" data-act="providers">Configurar em ⚙ Serviços</button></p>';}
+function geoapifyWarn(){return gaKey()?'':'<p class="small" style="margin:8px 0;padding:6px 8px;border-radius:6px;background:#fff7e0;border:1px solid #eda100">⚠ Sem a chave gratuita do Geoapify (3.000 consultas/dia), o número da casa em Paracatu fica menos preciso. <button class="sm" data-act="providers">Configurar em ⚙ Serviços</button></p>';}
 function geoKeyHtml(){const g=geoKeyGet();return geoapifyWarn()+`<details class="sec" style="margin-top:10px"${g?' open':''}><summary><b>Fonte extra com chave própria (opcional)</b> <span class="small muted">— melhora a posição pelo número da casa</span></summary><div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap"><select id="shGeoProv"><option value="">Nenhuma (só fontes gratuitas)</option>${Object.entries(GEO_PROV).map(([k,p])=>`<option value="${k}" ${g?.prov===k?'selected':''}>${p.name}</option>`).join('')}</select><input id="shGeoKey" type="password" placeholder="cole aqui a chave da API" value="${esc(g?.key||'')}" style="flex:1;min-width:200px"></div><p class="muted small">Google, HERE, Mapbox, Geoapify, LocationIQ e OpenCage têm planos gratuitos com limite mensal; crie a chave no site do serviço. A chave fica guardada só neste navegador — não vai para backup, KML nem HTML exportado. Sem chave, o sistema usa Correios (ViaCEP), AwesomeAPI, OpenStreetMap e Photon. Cotas, uso do dia e fontes ligadas: <a href="#" data-act="providers">⚙ Serviços</a>.</p></details>`;}
 function geoKeyRead(){const p=$('shGeoProv'),k=$('shGeoKey');if(!p||!k)return;const prov=p.value,key=k.value.trim();const cur0=geoKeyGet();if(!prov||!key){if(cur0&&!prov)geoKeySet(null);return;}if(!cur0||cur0.prov!==prov||cur0.key!==key){geoKeySet(prov,key);GEO_DOWN.prem=0;}}
 /* correção de uma linha na revisão: opções de todas as fontes ou endereço digitado */
 function sheetFix(i){const W=SHEET,d=sheetRec(W.rows[i]),a=sheetAddr(d),r=W.res[i]||{q:'none'};const txt=[a.street&&(a.street+(a.number?', '+a.number:'')),a.bairro,a.cep&&('CEP '+a.cep)].filter(Boolean).join(', ');
  const list=c=>c.length?c.map((x,k)=>`<div class="sug"><span class="chip ${GEO_Q[x.q]?.[1]||'warn'}">${GEO_Q[x.q]?.[0]||x.q}</span> <span class="small">${esc(x.label||'')}</span> <span class="small muted">· ${esc(x.src||'')}${r.lat!=null?' · '+Math.round(distM(x,r))+' m da posição atual':''}</span><button class="sm primary" data-fix="${k}">Usar</button></div>`).join(''):'<p class="muted">Nenhuma fonte achou. Tente só a rua e o bairro, ou corrija a grafia.</p>';
  dialog('Corrigir endereço · linha '+(i+1),`<p class="small muted">${esc(W.F.person?d[W.F.person]:'')} — localização atual: <b>${GEO_Q[r.q][0]}</b>${r.label?' ('+esc(r.label)+')':''}</p><div class="row"><input id="fixQ" style="flex:1" value="${esc(txt)}"><button data-act="sheetFixRun">Buscar</button></div><p class="muted small">Busca em todas as fontes (Correios/CEP, OpenStreetMap, Photon${geoKeyGet()?', '+GEO_PROV[geoKeyGet().prov].name:''} e base de pontos) dentro de ${esc(a.city)}-${esc(a.uf)}. Pode digitar o CEP.</p><div id="fixRes">${list(r.cands||[])}</div>`,[['← Voltar à revisão',()=>{sheetStep3();return false;}]]);
- const bind=c=>qsa('[data-fix]').forEach(b=>b.onclick=()=>{const x=c[+b.dataset.fix];W.res[i]={q:x.q==='numero'||x.q==='cep'||x.q==='base'?x.q:'manual',lat:x.lat,lon:x.lon,label:(x.label||'')+' — escolhido na revisão',src:x.src,cands:c};sheetStep3();});bind(r.cands||[]);
+ const bind=c=>qsa('[data-fix]').forEach(b=>b.onclick=()=>{const x=c[+b.dataset.fix];W.res[i]={q:x.q==='numero'||x.q==='cep'||x.q==='base'?x.q:'manual',man:true,lat:x.lat,lon:x.lon,label:(x.label||'')+' — escolhido na revisão',src:x.src,cands:c};sheetStep3();});bind(r.cands||[]);
  ACT.sheetFixRun=async()=>{const q=$('fixQ').value.trim();if(!q)return;$('fixRes').innerHTML='<p class="muted">Buscando nas fontes…</p>';try{const pa=parseBrAddress(q),c=await geoSearchText(q+(pa.cep||/\d{5}-?\d{3}/.test(q)?'':''),a.city,a.uf);$('fixRes').innerHTML=list(c);bind(c);}catch(e){$('fixRes').innerHTML='<p class="note bad">'+esc(e.message)+'</p>';}};}
 /* ---------- IA gratuita para os pendentes (2.18.3) ----------
    LGPD: o prompt leva só ID;Endereco;Bairro;CEP;Cidade;UF — nunca nome, matrícula ou telefone.
@@ -6185,7 +6198,7 @@ const HELP=[
 <li><b>🔗 Reconciliar histórico</b>: junta os cadastros antigos (nome, e-mail e matrícula digitados) com o e-mail Google oficial — nas vistorias, acompanhamentos, registro da Base e histórico do servidor. Antes de aplicar, guarda uma versão automática e faz backup do histórico; o nome antigo fica guardado como “legado”.</li>
 <li>Enquanto a transição não termina, quem não entra com o Google continua pela chave, como antes. Depois o administrador liga o modo “só com Google”.</li>
 <li><b>Nome e matrícula</b> (2.18.1): se o cadastro estiver sem nome (ou com o e-mail no lugar), vale o nome da conta Google, e o cadastro é corrigido. A matrícula é a do cadastro (⚙ Serviços → 👥, o administrador edita) e aparece sozinha, sem campo para digitar, nas vistorias de segurança.</li>
-<li><b>🧹 Compactar a base</b> (administrador): mostra uma prévia e, ao confirmar, o servidor guarda uma cópia selada da base em base/backups/, leva as unificações antigas para base/arquivo-merges.json (ficam as 30 últimas, que ainda podem ser desfeitas), simplifica a trilha GPS dos acompanhamentos encerrados (métricas não mudam), tira atendimentos sem rota e preenche o endereço do portal que faltava. Rodar de novo não muda nada.</li></ul>`},
+<li><b>🧹 Compactar a base</b> (administrador): mostra uma prévia e, ao confirmar, o servidor guarda uma cópia selada da base em base/backups/, leva as unificações antigas para base/arquivo-merges.json (ficam as 30 últimas, que ainda podem ser desfeitas), simplifica a trilha GPS dos acompanhamentos encerrados (métricas não mudam), tira atendimentos sem rota e preenche o endereço do portal que faltava. Rodar de novo não muda nada. <b>2.18.4:</b> se houver alguém com o Estúdio aberto numa versão antiga (abaixo da mínima), a compactação fica bloqueada e a tela lista quem precisa dar F5 — o servidor confere de novo antes de gravar.</li></ul>`},
 {id:'g-pasta',m:'geral',t:'Pasta compartilhada no Google Drive (editar de outro computador)',k:'google drive pasta compartilhada outro computador sincronizar nuvem equipe drive para computador conectar reconectar conflito qual versao vale versoes',at:['dlg:dados pasta compartilhada','h:pasta compartilhada','dlg:pasta compartilhada qual versao vale'],b:`
 <p>Sem servidor, os dados podem ficar na pasta do projeto no Google Drive. O Chrome ou o Edge grava ali o arquivo <b>Rota Studio - dados.json</b> a cada alteração, e o <b>Google Drive para computador</b> leva para a nuvem e para os outros computadores.</p>
 <ol><li>Instale o Google Drive para computador e deixe a pasta do projeto sincronizando (ex.: <b>I:\\Meu Drive\\Projeto Rotas</b>). Colegas: compartilhe a pasta com eles e peça para “Adicionar atalho ao Meu Drive”.</li>
@@ -6200,6 +6213,7 @@ const HELP=[
 <p>O botão <b>⚙ Serviços</b> no topo mostra e configura os serviços externos. O ponto colorido indica quem está respondendo.</p>
 <ul><li><b>Roteador</b> (trajeto de ônibus e caminhada), nesta ordem: 1. servidor próprio (Valhalla do kit) → 2. FOSSGIS público → 3. Geoapify (reserva, com chave) → 4. OSRM (último recurso). Sem nenhum, o trecho fica em linha reta vermelha. Use <b>Testar</b> depois de colar o endereço do servidor.</li>
 <li><b>Endereços</b>: CEP (Correios/ViaCEP e AwesomeAPI), Photon, Nominatim e, se quiser, uma fonte paga com chave própria. Informe o e-mail da empresa para o Nominatim.</li>
+<li><b>Chave Geoapify da equipe</b> (2.18.4): o administrador cola a chave no campo e clica em <b>Salvar chave para a equipe (servidor)</b>; ela fica só no script (Propriedades do script, GEOAPIFY_KEY). Quem entra com o Google e tem o Planejamento (Administrador e Analista) recebe a chave ao entrar — só na memória da aba, nunca no navegador, no backup ou no arquivo publicado — e vê “✓ Chave Geoapify ativa (servidor / equipe)”. Segurança e Campo não recebem. Uma chave própria colada neste navegador tem prioridade.</li>
 <li><b>Uso e cotas</b>: contagem do dia, média de 7 dias e mês. A 80% avisa; a 100% troca de serviço sozinho.</li>
 <li><b>Assistente de dúvidas (IA)</b>: chave opcional para perguntar em texto livre (veja o artigo do assistente).</li>
 <li><b>👤 Usuário</b>: nome, e-mail e matrícula, pedidos ao abrir o Estúdio de Rotas (cada um só pode pertencer a uma pessoa). Aparecem no histórico e nas vistorias. “Trocar de usuário” fica aqui.</li><li><b>📜 Histórico de alterações</b>: quem gravou, quando e o que mudou (pontos, viagens, vistorias, acompanhamentos, rotas do Planejamento…), com filtros por mês, pessoa e tipo.</li></ul>
@@ -6264,7 +6278,8 @@ const HELP=[
 <li>Se o mesmo endereço veio escrito de jeitos diferentes (ex.: Padre Bené × Padre Bener, mesmo número), o sistema pergunta se pode <b>unificar</b> — veja “Endereços repetidos”.</li></ol>
 <p><b>Planilhas grandes (2.16, 1.000+ endereços)</b>: endereço repetido vai à internet uma vez só; o que já foi localizado fica guardado neste computador e serve para as próximas planilhas; endereço igual ao de um ponto da Base não vai à internet. A cada 20 linhas o andamento é salvo: se a aba fechar, abra a mesma planilha de novo e o sistema pergunta se retoma de onde parou. Sem número = aproximado (marrom, conferir); não localizado = fica na fila de posicionar no mapa. A coluna de turno/grupo (“Separar rotas por”) cria uma rota por turno.</p>
 <p><b>Formatos aceitos</b>: “Rua: R. dos Coqueiros; Nº 04, Primavera”, “Rua Cajueiro, 11 - Primavera. 38606-274”, “Rua 16, 115 - Bandeirantes”. CEP no fim é aproveitado. <b>Zona rural</b> (“Zona Rural - Ponto no Posto Paracatu”): não há rua — o sistema procura o lugar com nome (posto, escola…) e, se não achar, o ponto fica pendente para você posicionar.</p>
-<p><b>Resolver pendentes com IA gratuita</b> (2.18.3): na revisão, o bloco “✨ Resolver pendentes com IA” gera um prompt em lotes de 40 linhas para o Gemini, ChatGPT ou Claude com <b>só ID, endereço, bairro, CEP, cidade e UF — nenhum nome, matrícula ou telefone sai do sistema</b>. Cole a resposta (ou importe um KML corrigido) e clique em Aplicar: coordenadas fora da cidade são recusadas e as aceitas ficam como “Corrigido por IA — conferir”; confira-as no mapa antes de usar.</p>`},
+<p><b>Resolver pendentes com IA gratuita</b> (2.18.3): na revisão, o bloco “✨ Resolver pendentes com IA” gera um prompt em lotes de 40 linhas para o Gemini, ChatGPT ou Claude com <b>só ID, endereço, bairro, CEP, cidade e UF — nenhum nome, matrícula ou telefone sai do sistema</b>. Cole a resposta (ou importe um KML corrigido) e clique em Aplicar: coordenadas fora da cidade são recusadas e as aceitas ficam como “Corrigido por IA — conferir”; confira-as no mapa antes de usar.</p>
+<p><b>Localizar de novo</b> (2.18.4): voltar e clicar em “Localizar endereços →” <b>preserva</b> as linhas corrigidas pela IA ou escolhidas à mão na revisão (aviso “X endereços corrigidos por IA/manualmente foram preservados”). Para localizar também essas linhas, use “Sobrescrever correções…” e confirme — as correções se perdem.</p>`},
 {id:'p-paradas',m:'plan',t:'Paradas: endereços × pontos recomendados',k:'paradas pontos recomendados agrupar enderecos raio caminhada reagrupar base primeiro passageiros embarque',at:['h:pontos de parada','tab:stops'],go:{mod:'plan',tab:'stops'},b:`
 <ul><li><b>Endereços</b>: uma parada por endereço (porta a porta).</li>
 <li><b>💡 Recomendações no mapa</b>: os pontos recomendados aparecem sempre no mapa como círculos <b>tracejados</b> (roxo = ponto novo, verde = ponto padrão) com o número de passageiros e linhas pontilhadas até eles. São recalculados a cada mudança (passageiro movido, raio, critério) e não fazem parte da rota até você usar: clique no círculo → <b>Usar os pontos recomendados</b>, ou no modo agrupado <b>+ Usar só este ponto</b>. O botão 💡 no mapa mostra/oculta.</li>
@@ -6308,7 +6323,7 @@ const HELP=[
 <p><b>🎯 Cenários de otimização</b> compara lado a lado várias formas de fazer a mesma rota. Desde a 2.9 <b>cada cenário é traçado pelas vias</b> (as mesmas regras do 🧭 Recalcular: sem meia-volta, lado da porta, cercas, rede de ônibus) e a tabela mostra os <b>valores medidos</b> — selo <b>✓ traçado</b>. Antes, os números vinham de uma matriz de distâncias e o tempo real saía maior.</p>
 <p><b>Antes de otimizar</b> (2.16) o sistema pergunta: <b>tempo máximo a bordo</b> (contrato, padrão 60 min), <b>margem para o trânsito</b> (10 min), <b>lotação</b> (42) e <b>caminhada</b> (700 m). Os valores ficam lembrados. Nenhum veículo passa do <b>tempo-alvo</b> (máximo − margem = 50 min) nem da lotação, e o resultado mostra a <b>frota mínima</b>. A divisão em veículos não junta corredores opostos (lados diferentes do destino) no mesmo veículo e pode ir além de 6 veículos.</p>
 <p><b>Lote grande</b> (2.16.2): com mais de 60 endereços e mais passageiros do que a lotação de um veículo, a rota única é impossível. Por isso os Cenários vão <b>direto à divisão em veículos</b>, sem ordenar todos os endereços como uma rota só (era isso que travava a tela). A divisão usa distâncias estimadas, e cada veículo é traçado pelas vias em seguida (com barra de progresso). 1.000 endereços levam segundos. Se nenhum cenário couber no tempo-alvo, a recomendação é o mais perto do limite (menor tempo a bordo).</p>
-<p><b>2.18.2.</b> O <b>teto</b> (ex.: 60 min) é rígido e a <b>margem</b> (ex.: 10 min) é a folga para o trânsito: a otimização mira o <b>tempo-alvo = teto − margem</b> (50 min) — o rodapé mostra a conta. <b>Meta de lotação (%)</b>: com 90%, um ônibus de 42 lugares leva até 37 (folga para não deixar um colado em 42/42 e outro em 28/42); vale aqui e no “Configurar o atendimento”. Numa rota de atendimento com vários veículos há dois escopos: <b>Este veículo</b> (só a ordem e os pontos dele — nunca divide nem cria veículo) e <b>Todo o atendimento</b> (divide de novo todos os passageiros e, ao aplicar, substitui os veículos; ↶ Desfazer volta tudo). <b>Aplicar</b> sempre traça pelas vias e mostra o resumo: paradas antes → depois, tempo a bordo do 1º passageiro, KM operacional e ocioso e pendências do Limbo; se algo impedir, o motivo aparece na tela.</p>
+<p><b>2.18.2.</b> O <b>teto</b> (ex.: 60 min) é rígido e a <b>margem</b> (ex.: 10 min) é a folga para o trânsito: a otimização mira o <b>tempo-alvo = teto − margem</b> (50 min) — o rodapé mostra a conta. <b>Meta de lotação (%)</b>: com 90%, um ônibus de 42 lugares leva até 37 (folga para não deixar um colado em 42/42 e outro em 28/42); vale aqui e no “Configurar o atendimento”. Numa rota de atendimento com vários veículos há dois escopos: <b>Este veículo</b> (só a ordem e os pontos dele — nunca divide nem cria veículo) e <b>Todo o atendimento</b> (divide de novo todos os passageiros e, ao aplicar, substitui os veículos; ↶ Desfazer volta tudo). Num atendimento <b>IDA e VOLTA</b>, só o sentido aberto é reorganizado: o resumo avisa em destaque para revisar o sentido oposto, que não muda. <b>Aplicar</b> sempre traça pelas vias e mostra o resumo: paradas antes → depois, tempo a bordo do 1º passageiro, KM operacional e ocioso e pendências do Limbo; se algo impedir, o motivo aparece na tela.</p>
 <p><b>Corredores até o destino</b> (2.18): a divisão agrupa quem está no mesmo corredor de acesso ao destino (ex.: oeste, centro, leste), respeitando lotação e tempo-alvo, e depois troca pontos entre veículos vizinhos para que nenhum ônibus entre no território do outro. Cada divisão mostra quantos pontos ficaram no território de outro veículo, e a recomendação evita os que se cruzam.</p>
 <ul><li><b>Atual</b> · <b>Menor KM ocioso</b> (começa pelo lado da garagem) · <b>Menor tempo de viagem</b> (tempo de rota + tempo a bordo) · <b>Menor percurso</b> (só o caminho mais curto até o destino) · <b>Varredura até o destino</b> (começa no ponto mais distante e contorna a cidade num só sentido, como no planejamento manual).</li>
 <li><b>Pontos estratégicos</b> (hubbing): junta os passageiros em menos paradas dentro do raio a pé, priorizando pontos padrão da base; <b>Menos pontos possível</b> concentra ainda mais.</li>
@@ -6975,8 +6990,8 @@ let LOCK_ACT=Date.now();['pointerdown','keydown','wheel'].forEach(t=>addEventLis
 function lockWant(){const r=MOD==='plan'?cur():null;return r&&!document.hidden&&Date.now()-LOCK_ACT<LOCK_IDLE&&!lockBy(r.id)?r.id:'';}
 function lockW(){if(!LOCK.w){try{LOCK.w=sessionStorage.getItem('rs-aba')||'';}catch{}if(!LOCK.w){LOCK.w=uid('w');try{sessionStorage.setItem('rs-aba',LOCK.w);}catch{}}}return LOCK.w;}
 function presQ(){const r=MOD==='plan'?cur():null;LOCK.mine=lockWant();
- return 'quem='+encodeURIComponent(userName()||'sem nome')+'&e='+encodeURIComponent(ident()?.email||'')+'&w='+lockW()+'&onde='+MOD+(r?'&rid='+encodeURIComponent(r.id)+'&rn='+encodeURIComponent(String(r.name||'').slice(0,60)):'')+'&trava='+encodeURIComponent(LOCK.mine);}
-function livePres(v){LIVE.on2=v?.on||[];if(!v?.pres)return;const me=lockW();LOCK.pres=v.pres.filter(p=>p.w!==me);LOCK.locks=v.locks||{};LOCK.got=LOCK.pingAt=Date.now();
+ return 'quem='+encodeURIComponent(userName()||'sem nome')+'&e='+encodeURIComponent(ident()?.email||'')+'&w='+lockW()+'&v='+APP_VERSION+'&onde='+MOD+(r?'&rid='+encodeURIComponent(r.id)+'&rn='+encodeURIComponent(String(r.name||'').slice(0,60)):'')+'&trava='+encodeURIComponent(LOCK.mine);}
+function livePres(v){LIVE.on2=v?.on||[];if(v?.min)LIVE.min=v.min;if(!v?.pres)return;const me=lockW();LOCK.pres=v.pres.filter(p=>p.w!==me);LOCK.locks=v.locks||{};LOCK.got=LOCK.pingAt=Date.now();
  if(v.trava&&!v.trava.ok&&LOCK.mine){toast('🔒 '+(v.trava.n||'Outra pessoa')+' pegou esta rota antes — a partir de agora ela fica em modo leitura para você.','warn');LOCK.mine='';}renderLock();}
 /* nome de quem tem o cadeado da rota (vazio = livre ou é deste computador/aba); informação velha (> 70 s sem resposta) não trava */
 function lockBy(rid){const x=LOCK.locks[rid];return x&&x.w!==lockW()&&Date.now()-LOCK.got<100e3?x.n||'outra pessoa':'';}
@@ -7082,7 +7097,7 @@ async function liveSave(now){if(!liveUrl()||!LIVE.on)return;if(LIVE.busy){LIVE.a
 const liveLater=debounce(()=>{if(!liveWaitUI())liveSave();else setTimeout(liveLater,4000);},2500);
 async function liveTick(){if(LIVE.old||!LIVE.on||LIVE.busy||liveWaitUI())return;if(document.hidden){campoCaixa();return;}
  try{if(liveDirty()){await liveSave();livePing();}else await livePull(false);campoCaixa();}catch(e){LIVE.err=e.message;renderSyncPill();}}
-async function liveStart(){if(!liveUrl()||LIVE.on||LIVE.old)return;LIVE.on=true;
+async function liveStart(){if(!liveUrl()||LIVE.on||LIVE.old)return;LIVE.on=true;srvKeys();
  try{const k=await IDB.get('liveBase');if(k?.doc){LIVE.base=k.doc;LIVE.ver=k.ver||0;}}catch{}
  try{const v=await liveGet('base=versao&'+presQ());if(v?.min&&verLt(APP_VERSION,v.min)){liveOld(v.min);return;}livePres(v);}catch{}
  renderSyncPill();identCheck();
@@ -7154,15 +7169,26 @@ async function gisReady(){await loadScript('https://accounts.google.com/gsi/clie
 async function authLogin(tok){const j=await fetch(liveUrl(),{method:'POST',body:JSON.stringify({g:tok,acao:'auth',app:APP_VERSION})}).then(r=>r.json());if(!j?.ok)throw new Error(j?.erro||'login recusado');
  if(!j.nome||String(j.nome).trim().toLowerCase()===String(j.email).toLowerCase())j.nome=jwtName(tok)||j.nome;
  Object.assign(AUTH,{g:tok,email:j.email,nome:j.nome,perfil:j.perfil,perm:j.perm,exp:jwtExp(tok)});try{sessionStorage.setItem('rs-auth',JSON.stringify(AUTH));}catch{}
- lsSet(IDENT_LS,{nome:j.nome,email:j.email,mat:j.mat||'',ok:true,google:true});lsSet(USER_LS,j.nome);permApply();return j;}
-function authOut(){Object.assign(AUTH,{g:'',email:'',nome:'',perfil:'',perm:null,exp:0});try{sessionStorage.removeItem('rs-auth');window.google?.accounts?.id?.disableAutoSelect?.();}catch{}}
+ lsSet(IDENT_LS,{nome:j.nome,email:j.email,mat:j.mat||'',ok:true,google:true});lsSet(USER_LS,j.nome);permApply();srvKeys();return j;}
+/* 2.18.4 — chave Geoapify da equipe: o script só entrega a quem entrou com o Google e tem o Planejamento; fica só na memória desta aba */
+async function srvKeys(){if(!AUTH.g||!can('plan')||!liveUrl()){SRV_KEYS={};return;}try{const j=await liveGet('base=chaves');SRV_KEYS=j?.ok&&j.geoapify?{geoapify:String(j.geoapify)}:{};}catch{}}
+async function srvKeySave(){if(!AUTH.g||!can('admin')){toast('Só o administrador, depois de entrar com o Google.','warn');return;}const k=($('pvGaKey')?.value||'').trim();
+ if(!/^[A-Za-z0-9_-]{16,80}$/.test(k)){toast('Cole no campo acima a chave do Geoapify (myprojects.geoapify.com) antes de salvar para a equipe.','warn',8000);return;}
+ const j=await livePost({acao:'chaves-gravar',geoapify:k}).catch(e=>({erro:e.message}));
+ if(j?.ok){SRV_KEYS={geoapify:k};toast('✓ Chave Geoapify salva no servidor para a equipe (quem tem o Planejamento passa a usá-la ao entrar).','ok',9000);}else toast('Não salvou a chave: '+(j?.erro||'erro'),'bad',9000);}
+function authOut(){SRV_KEYS={};Object.assign(AUTH,{g:'',email:'',nome:'',perfil:'',perm:null,exp:0});try{sessionStorage.removeItem('rs-auth');window.google?.accounts?.id?.disableAutoSelect?.();}catch{}}
 /* login vencido ou negado pelo script: pede de novo (uma vez) */
 function authSeen(j){if(j?.auth&&!j.pedido&&(AUTH.g||DIST)&&!IDENT_WAIT){authOut();identGate(j.erro||'Entre com o Google de novo.');}return j;}
 /* o Google entrega outro token antes de vencer, sem perguntar, para quem já aceitou */
 setInterval(()=>{if(AUTH.g&&AUTH.exp-Date.now()<5*60e3&&window.google?.accounts){gisReady.cb=t=>authLogin(t).catch(()=>{});google.accounts.id.prompt();}},60e3);
 function permApply(){if(!AUTH.perm||typeof MOD==='undefined')return;if(!can('acomp')&&can('sst'))ACOMP_VIEW='seguranca';if(!modOk(MOD))setMod(MODS.find(m=>modOk(m[0]))?.[0]||'plan');else{renderMods();renderAll();}}
 /* ---------- 🧹 compactar a base viva (só ADMIN; quem faz é o servidor, com cópia selada antes) ---------- */
-async function compOpen(){if(!AUTH.g||!can('admin')){toast('Só o administrador, depois de entrar com o Google.','warn');return;}if(liveDirty())await liveSave(true);
+/* 2.18.4: aba aberta abaixo da versão mínima (a do script ou 2.18.4, a maior) traria de volta o que a compactação tira — bloqueia e diz quem precisa dar F5 (o script confere de novo) */
+const COMP_MIN='2.18.4';
+function compOld(){const min=LIVE.min&&verLt(COMP_MIN,LIVE.min)?LIVE.min:COMP_MIN;return{min,who:[...new Set(LOCK.pres.filter(p=>Date.now()-LOCK.got<100e3&&(!p.v||verLt(p.v,min))).map(p=>(p.n||'sem nome')+' ('+(p.v?'versão '+p.v:'versão antiga')+')'))]};}
+async function compOpen(){if(!AUTH.g||!can('admin')){toast('Só o administrador, depois de entrar com o Google.','warn');return;}
+ const o=compOld();if(o.who.length){dialog('🧹 Compactar bloqueado',`<p>⚠ Há aba aberta do Estúdio abaixo da versão <b>${esc(o.min)}</b>. Compactar agora deixaria essas abas trazerem de volta o que a compactação tira.</p><p>Peça para darem <b>F5</b> (ou fecharem a aba):</p><ul>${o.who.map(n=>'<li>'+esc(n)+'</li>').join('')}</ul><p class="small muted">Depois que todos atualizarem, tente de novo.</p>`);return;}
+ if(liveDirty())await liveSave(true);
  const j=await livePost({acao:'compactar'}).catch(e=>({erro:e.message}));if(!j?.ok){toast('Não consegui fazer a prévia'+(j?.erro?': '+j.erro:'.'),'bad',9000);return;}const r=j.rel,kb=n=>Math.round(n/1024).toLocaleString('pt-BR')+' KB';
  dialog('🧹 Compactar a base viva',`<p>Prévia — nada mudou ainda: <b>${kb(r.antes)} → ${kb(r.depois)}</b>.</p><ul class="small"><li>${r.merges} unificação(ões) antiga(s) vão para <b>base/arquivo-merges.json</b>; ficam as ${r.mergesFicam} últimas (só essas podem ser desfeitas pela tela).</li><li>${r.trilhas} trilha(s) GPS de acompanhamentos encerrados simplificada(s): ${r.pontosAntes.toLocaleString('pt-BR')} → ${r.pontosDepois.toLocaleString('pt-BR')} pontos (6 m). Métricas e paradas não mudam.</li><li>${r.atends} atendimento(s) sem nenhuma rota removido(s).</li><li>${r.slugs.length?'Endereço do portal preenchido: '+r.slugs.map(esc).join(', '):'Todas as frentes já têm endereço do portal.'}</li></ul><p class="small muted">Antes de gravar, o servidor guarda uma cópia selada da base em base/backups/ (SHA-256 na descrição). Quem estiver conectado recebe a base nova sozinho.</p>`,[['Cancelar',null],['Compactar agora',()=>{compRun(j.ver);}]]);}
 async function compRun(ver){const j=await livePost({acao:'compactar',aplicar:true,ver}).catch(e=>({erro:e.message}));
@@ -7361,7 +7387,7 @@ function openDados(){const ok=SYNC_OK(),u=pubUrl(),gas=isGasUrl(u);
  $('syDl')?.addEventListener('change',e=>{try{localStorage.setItem('rota-studio-dlpasta',e.target.checked?'1':'0');}catch{}});
  $('syAuto')?.addEventListener('change',e=>{CAT.pub={...pubCfg(),noAuto:!e.target.checked};catSave();if(e.target.checked)syncPubLater();});}
 const SYNC_ACT={histOpen:()=>histOpen(),recebOpen:()=>recebOpen(),usrOpen:()=>usrOpen(),reconOpen:()=>reconOpen(),usrAdd:()=>usrAdd(),usrLib:a=>usrLib(a),identSwap:()=>{authOut();lsSet(IDENT_LS,null);document.querySelectorAll('dialog[open]').forEach(x=>x.close());identGate();},
- dados:()=>LIVE.on?presOpen():SYNC.need?syncReconnect():openDados(),presClose:()=>{$('presPop')?.remove();$('syncPill')?.focus();},presDados:()=>{$('presPop')?.remove();openDados();},compOpen:()=>compOpen(),
+ dados:()=>LIVE.on?presOpen():SYNC.need?syncReconnect():openDados(),presClose:()=>{$('presPop')?.remove();$('syncPill')?.focus();},presDados:()=>{$('presPop')?.remove();openDados();},compOpen:()=>compOpen(),srvKeySave:()=>srvKeySave(),
  syPick:()=>{$('dlg').close();syncPick();},
  syReconnect:()=>{$('dlg').close();syncReconnect();},
  syNow:async()=>{SYNC.hash=null;await syncWrite();if(!SYNC.hold)openDados();},
@@ -7496,7 +7522,7 @@ function adotar_() {
    Os dados do projeto ficam num único arquivo (base/Rota Studio - base.json) que SÓ este script grava, com número de versão
    e trava: quem tenta gravar a partir de uma versão velha recebe "conflito", junta as alterações (no computador) e grava de novo.
    Versões antigas do Estúdio de Rotas não gravam aqui (BASE_MIN). Cópia diária em versoes/ (guarda 30). */
-const BASE_MIN = '2.16.1', APP_MIN = '2.11', BASE_NOME = 'Rota Studio - base.json';  // versão mínima da ferramenta e do app: abaixo disso pedem para recarregar
+const BASE_MIN = '2.18.4', APP_MIN = '2.13.2', BASE_NOME = 'Rota Studio - base.json';  // versão mínima da ferramenta e do app: abaixo disso pedem para recarregar
 function raiz_() { return DriveApp.getFolderById(PASTA_PUBLICADO).getParents().next(); }
 function baseArq_() { return ultimo_(sub_(raiz_(), 'base'), BASE_NOME); }
 function baseVer_() { const pr = PropertiesService.getScriptProperties(); return { ver: +(pr.getProperty('BASE_VER') || 0), at: pr.getProperty('BASE_AT') || '', by: pr.getProperty('BASE_BY') || '' }; }
@@ -7521,7 +7547,7 @@ function presenca2_(p) {
     const P = JSON.parse(c.get('PRES2') || '{}'), L = JSON.parse(c.get('TRAVAS') || '{}');
     Object.keys(L).forEach(function (k) { if (L[k].exp < agora) delete L[k]; });
     if (got && w && n) {
-      P[w] = { n: n, w: w, pf: String((p.u && p.u.perfil) || '').slice(0, 20), mod: String(p.onde || '').slice(0, 20), rid: String(p.rid || '').slice(0, 40), rn: String(p.rn || '').slice(0, 60), t: agora };
+      P[w] = { n: n, w: w, v: String(p.v || '').slice(0, 12), pf: String((p.u && p.u.perfil) || '').slice(0, 20), mod: String(p.onde || '').slice(0, 20), rid: String(p.rid || '').slice(0, 40), rn: String(p.rn || '').slice(0, 60), t: agora };
       Object.keys(L).forEach(function (k) { if (L[k].w === w && k !== rid) delete L[k]; });
       if (rid) { const x = L[rid]; if (!x || x.w === w) { L[rid] = { n: n, w: w, e: e, exp: agora + TRAVA_MS }; res.trava = { ok: true }; } else res.trava = { ok: false, n: x.n }; }
     }
@@ -7665,6 +7691,7 @@ function admin_(d, u) {
       histAdd_({ at: new Date().toISOString(), by: u.nome, email: u.email, mat: u.mat, itens: [{ t: 'Reconciliação', a: 'aplicou', n: rel.trocas + ' linha(s) em ' + rel.arquivos + ' arquivo(s)' }] });
       return json_({ ok: true, rel: rel });
     }
+    if (d.acao === 'chaves-gravar') return chavesGravar_(d, u);
     if (d.acao === 'compactar') return compactarBase_(d, u);
     return json_({ ok: false, erro: 'pedido desconhecido' });
   } finally { lk.releaseLock(); }
@@ -7728,8 +7755,29 @@ function compactar_(doc, arq) {
   Object.keys(c.frentes || {}).forEach(function (k) { const f = c.frentes[k]; if (f && !f.slug) { f.slug = slugUrl_(f.name || k); rel.slugs.push(f.slug); } });
   return { rel: rel, arq: arq };
 }
+/* ===== 2.18.4 — chave Geoapify da equipe (ScriptProperties GEOAPIFY_KEY) e abas antigas ===== */
+function chaves_(u) {
+  if (!u || !permDe_(u).plan) return json_({ ok: false, negado: true, erro: 'a chave da equipe só vale para quem entrou com o Google e tem o Planejamento' });
+  return json_({ ok: true, geoapify: PropertiesService.getScriptProperties().getProperty('GEOAPIFY_KEY') || '' });
+}
+/* chamado por admin_ (só ADMIN): chave vazia apaga; o histórico registra quem mexeu, nunca a chave */
+function chavesGravar_(d, u) {
+  const k = String(d.geoapify == null ? '' : d.geoapify).trim(), pr = PropertiesService.getScriptProperties();
+  if (k && !/^[A-Za-z0-9_-]{16,80}$/.test(k)) return json_({ ok: false, erro: 'chave do Geoapify em formato inválido' });
+  if (k) pr.setProperty('GEOAPIFY_KEY', k); else pr.deleteProperty('GEOAPIFY_KEY');
+  histAdd_({ ver: baseVer_().ver, at: new Date().toISOString(), by: u.nome, email: u.email, mat: u.mat, itens: [{ t: 'Serviços', a: k ? 'gravou' : 'apagou', n: 'chave Geoapify da equipe' }] });
+  return json_({ ok: true, geoapify: !!k });
+}
+/* abas abertas (últimos 45 s) abaixo de BASE_MIN: as 2.17+ mandam v (a partir da 2.18.4); as sem v ou só na presença antiga contam como antigas */
+function velhos_(u) {
+  const c = CacheService.getScriptCache(), agora = Date.now(), P = JSON.parse(c.get('PRES2') || '{}'), m = JSON.parse(c.get('PRES') || '{}'), o = {}, vistos = {};
+  Object.keys(P).forEach(function (k) { const x = P[k]; if (agora - x.t >= 45000) return; vistos[x.n] = 1; if (!verOk_(x.v)) o[x.n || 'sem nome'] = 1; });
+  Object.keys(m).forEach(function (n) { if (agora - m[n] < 45000 && !vistos[n] && n !== (u && u.nome)) o[n] = 1; });
+  return Object.keys(o);
+}
 /* chamado por admin_ (já com a trava do script) */
 function compactarBase_(d, u) {
+  const vl = velhos_(u); if (vl.length) return json_({ ok: false, velhos: vl, erro: 'há aba aberta com versão antiga do Estúdio (abaixo de ' + BASE_MIN + ') — peça para dar F5: ' + vl.join(', ') });
   const f = baseArq_(), v = baseVer_(); if (!f || !v.ver) return json_({ ok: false, erro: 'base vazia' });
   const pasta = sub_(raiz_(), 'base'), fa = ultimo_(pasta, 'arquivo-merges.json'), txt = f.getBlob().getDataAsString('UTF-8');
   let arq = null; try { arq = fa ? JSON.parse(fa.getBlob().getDataAsString('UTF-8')) : null; } catch (x) { return json_({ ok: false, erro: 'arquivo-merges.json ilegível — nada foi mudado' }); }
@@ -7784,6 +7832,7 @@ function histArqs_() { const o = [], it = histPasta_().getFiles(); while (it.has
 function baseGet_(p, a) {
   p.u = a && a.u;
   if (p.base === 'historico') return historico_(p);
+  if (p.base === 'chaves') return chaves_(p.u);
   if (p.base === 'inteligencia') return intelLer_();
   if (p.base === 'versao') { const v = baseVer_(), x = presenca2_(p); return json_({ ok: true, ver: v.ver, at: v.at, by: v.by, on: presenca_(p.quem), min: BASE_MIN, pres: x.pres, locks: x.locks, trava: x.trava }); }
   if (p.base === 'ler') {
@@ -7996,7 +8045,7 @@ function doPost(e) {
   if (!a.ok) return json_({ ok: false, erro: a.erro, auth: true, pedido: !!a.pedido });
   const u = a.u, pode = function (k) { return !u || !!permDe_(u)[k]; };
   if (d.acao === 'auth') return u ? json_({ ok: true, email: u.email, nome: u.nome, mat: u.mat, perfil: u.perfil, perm: permDe_(u), modo: authModo_() }) : json_({ ok: false, erro: 'entre com o Google' });
-  if (/^(usuarios-|reconciliar$|legado$|compactar$)/.test(String(d.acao || ''))) return u && permDe_(u).admin ? admin_(d, u) : json_({ ok: false, negado: true, erro: 'só o administrador' });
+  if (/^(usuarios-|reconciliar$|legado$|compactar$|chaves-gravar$)/.test(String(d.acao || ''))) return u && permDe_(u).admin ? admin_(d, u) : json_({ ok: false, negado: true, erro: 'só o administrador' });
   if (d.acao === 'inteligencia-gravar') return ['plan', 'base'].some(pode) ? intelGravar_(d) : negado_('gravar a inteligência de rotas');
   if (d.acao === 'usuario') return usuario_(d);
   if (d.acao === 'base-gravar') return ['plan', 'base', 'pub', 'acomp', 'sst'].some(pode) ? baseGravar_(d, u) : negado_('gravar a base');
