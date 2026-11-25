@@ -1055,6 +1055,13 @@ button.rail-logo{padding:0;cursor:default;color:#fff;position:relative}
 .route-bar .rb-top .proj-title{flex:1 1 auto;field-sizing:content;min-width:140px;max-width:100%}
 .route-bar #btnUndo{width:30px;padding:0;justify-content:center;font-size:15px;flex:none}
 .route-bar .rb-top .pill{font-size:10.5px;padding:3px 8px;letter-spacing:.2px}
+.sstf{flex-wrap:wrap;overflow:visible;padding-bottom:0}
+.sstf button{height:28px;padding:0 10px}
+.sstpick{display:grid;gap:8px;margin:0 0 10px}
+.sstseg{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.sstseg .lb{font-size:11.5px;font-weight:650;color:var(--muted);min-width:56px}
+.sstseg button{height:30px;padding:0 14px;border:1px solid var(--line2);border-radius:15px;background:#fff;font-size:12.5px;font-weight:650;color:var(--ink);font-variant-numeric:tabular-nums}
+.sstseg button.on{background:var(--brand);border-color:var(--brand);color:#fff}
 </style></head><body>
 <aside id="rail" class="rail" aria-label="Navegação principal">
  <button type="button" class="rail-logo" data-tip="Estúdio de Rotas" aria-label="Estúdio de Rotas"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5.5" cy="6" r="2.2"/><circle cx="18.5" cy="18" r="2.2"/><path d="M7.7 6h7.8a3.8 3.8 0 0 1 0 7.6H8.5a3.8 3.8 0 0 0 0 7.6h7.8"/></svg></button>
@@ -1103,7 +1110,7 @@ button.rail-logo{padding:0;cursor:default;color:#fff;position:relative}
 <script>
 'use strict';
 /* ===================== Utilidades ===================== */
-const APP_VERSION='3.0.1';
+const APP_VERSION='3.0.2';
 /* lotação padrão das viagens (2.8: 42 lugares) */
 const CAP_DEF=42;
 /* cores do mapa (2.7.1): IDA azul e VOLTA verde-água, sempre em linha contínua; deslocamento ocioso (garagem) tracejado cinza-escuro */
@@ -3087,7 +3094,7 @@ const REPO_LOCAL={kind:'local',name:'Este navegador (IndexedDB)',
  async load(){const c=await IDB.get('catalog');return c&&c.kind==='rota-studio-base'?c:null;},
  async save(c){await IDB.set('catalog',c);},
  async putPhoto(id,data){await IDB.set('photo:'+id,data);},
- async getPhoto(id){return(await IDB.get('photo:'+id))||photoRemote(id);},
+ async getPhoto(id){return(await IDB.get('photo:'+id))||(await photoLocal(id).catch(()=>null))||photoRemote(id);},
  async delPhoto(id){return IDB.del('photo:'+id);}};
 let REPO=REPO_LOCAL;
 const catSave=debounce(async()=>{if(READONLY)return;try{await REPO.save(CAT);if(typeof syncNote==='function')syncNote();}catch(e){toast('⚠ A Base ativa não foi salva neste navegador ('+e.message+'). Baixe o pacote da base (Base → Dados).','bad',9000);}},500);
@@ -3182,6 +3189,12 @@ function photoRef(id){for(const v of Object.values(CAT.insp||{})){const k=(v.pho
  for(const a of Object.values(CAT.acomps||{})){const st=a.stops||[],i=st.findIndex(s=>s.photo===id);if(i<0)continue;const k=st.filter(s=>s.photo).findIndex(s=>s.photo===id);if(a.fotosDrive?.[k])return{id:a.fotosDrive[k]};
   const h=a.head||{};return{a:1,l:h.linha||'',n:[sstSlug([h.data,String(h.hIni||'').replace(':','h'),h.sentido,String(a.id||'').slice(-6)].filter(String).join('_'))+'_parada'+(i+1)+'.jpg']};}return null;}
 const PHOTO_MISS=new Map();
+/* 3.0.2: tentar de novo à mão (relatório, abrir a vistoria) esquece as falhas lembradas */
+function photoRetry(ids){for(const id of ids||[]){PHOTO_MISS.delete(id);THUMB.delete(id);}}
+/* 3.0.2: com a pasta do projeto conectada, lê a foto direto de vistorias-seguranca/<linha>/fotos — também nas pastas repetidas ("ADM 04 (1)") e nas de outras linhas */
+async function photoLocal(id){if(!SYNC.dir||SYNC.need)return null;const r=photoRef(id);if(!r||r.id||!r.n?.length)return null;const root=await SYNC.dir.getDirectoryHandle(r.a?'acompanhamentos-fotos':SST_DIR).catch(()=>null);if(!root)return null;
+ const ls=[];for await(const[n,h]of root.entries())if(h.kind==='directory')ls.push([n,h]);const want=sstSlug(r.l||'');ls.sort((a,b)=>(b[0].startsWith(want)?1:0)-(a[0].startsWith(want)?1:0));
+ for(const[,h]of ls){const d=r.a?h:await h.getDirectoryHandle('fotos').catch(()=>null);if(!d)continue;for(const n of r.n){const fh=await d.getFileHandle(n).catch(()=>null);if(!fh)continue;const f=await fh.getFile();const u=await new Promise(res=>{const fr=new FileReader();fr.onload=()=>res(String(fr.result));fr.onerror=()=>res('');fr.readAsDataURL(f);});if(u.startsWith('data:image')){IDB.set('photo:'+id,u).catch(()=>{});return u;}}}return null;}
 async function photoRemote(id){if(!id||!liveUrl()||!navigator.onLine||Date.now()-(PHOTO_MISS.get(id)||0)<5*60e3)return null;const r=photoRef(id);if(!r){PHOTO_MISS.set(id,Date.now());return null;}
  const q=r.id?'id='+encodeURIComponent(r.id):(r.a?'a=1&':'')+'l='+encodeURIComponent(r.l||'')+'&n='+encodeURIComponent((r.n||[]).join('|'));
  const j=await liveGet('campo=foto&'+q).catch(()=>null);if(j?.ok&&typeof j.d==='string'&&j.d.startsWith('data:image')){IDB.set('photo:'+id,j.d).catch(()=>{});return j.d;}PHOTO_MISS.set(id,Date.now());return null;}
@@ -5086,7 +5099,7 @@ function openVistoria(t){const r=cur();const s=t.sid&&r?r.stops.find(x=>x.id===t
    const v=catInspAdd({pid:p.id,result:cls==='adequado'?'aprovado':cls==='nao_recomendado'?'reprovado':'ressalva',checks,notes:sst.obs,photos,by,mat,src:'computador',sst,...(VPS?.pv?{keepIdx:VPS.keep.slice()}:{})});vistMarkStops(p.id,v);catChanged({base:true});sstFotos(rt?sstLine(rt):'',p,v.at,datas);
    toast('✓ Vistoria de segurança registrada: '+SST_CLS[cls][0]+'.','ok');if(MOD==='acomp')renderTab();})();}]]);
  $('dlg').classList.add('wide');const upd=()=>{const pr=+$('vP').value,sv=+$('vS').value,n=pr&&sv?sstNivel(pr,sv):'';$('vNiv').textContent=n?n+' ('+pr+' × '+sv+') — sugestão: '+SST_CLS[sstSug(n)][0]:'—';};$('vP').onchange=$('vS').onchange=upd;upd();
- VPS={pv:pv0&&(pv0.photos||[]).length?pv0:null,keep:(pv0?.photos||[]).map((_,i)=>i),add:VPH,tok:0};vphRender();
+ photoRetry(pv0?.photos);VPS={pv:pv0&&(pv0.photos||[]).length?pv0:null,keep:(pv0?.photos||[]).map((_,i)=>i),add:VPH,tok:0};vphRender();
  $('vPh').onchange=async e=>{const fs=[...e.target.files];e.target.value='';for(const f of fs){if(VPH.length+VPS.keep.length>=10){toast('Máximo de 10 fotos.','warn');break;}try{const d=await photoEdit(await fileUrl(f));if(d)VPH.push(d);}catch{toast('Foto ignorada: imagem inválida.','warn');}}vphRender();};}
 /* 2.18.3: fotos da vistoria anterior (vêm do navegador ou do script, REPO.getPhoto) + as novas; ✕ remove, clique abre para ver/enquadrar (a editada vira foto nova) */
 let VPS=null;
@@ -5875,7 +5888,7 @@ const PP_ACT={ppView:el=>{S.ui={...(S.ui||{}),ppView:el.dataset.v};if(el.dataset
 /* 2.10.7: última vistoria de cada ponto para o card do Mapa do itinerário: foto reduzida, itens úteis ao embarque e observação.
    Não leva quem vistoriou (nome/matrícula ficam só no histórico interno). */
 const THUMB=new Map();
-async function photoThumb(id){if(THUMB.has(id))return THUMB.get(id);const d=await REPO.getPhoto(id).catch(()=>null);let t='';if(d)t=await new Promise(res=>{const im=new Image();im.onload=()=>{const k=Math.min(1,360/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',.62));};im.onerror=()=>res('');im.src=d;});THUMB.set(id,t);return t;}
+async function photoThumb(id){if(THUMB.has(id))return THUMB.get(id);const d=await REPO.getPhoto(id).catch(()=>null);let t='';if(d)t=await new Promise(res=>{const im=new Image();im.onload=()=>{const k=Math.min(1,360/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',.62));};im.onerror=()=>res('');im.src=d;});if(t)THUMB.set(id,t);return t;}
 async function mapaVist(lines){const out={};if(typeof CAT==='undefined'||!CAT_READY)return out;for(const P of lines)for(const b of P.blocks)for(const r of b.rows){if(!r.pid||out[r.pid]||!CAT.points[r.pid])continue;const v=catInspOf(r.pid)[0];if(!v)continue;
   const c={};for(const k of['abrigo','luz','calcada','acess'])if(v.checks?.[k]==='ok'||v.checks?.[k]==='nao')c[k]=v.checks[k]==='ok'?1:0;out[r.pid]={d:fdate(v.at),c,n:v.notes||'',ph:v.photos?.[0]?await photoThumb(v.photos[0]):''};}return out;}
 function mapaData(lines,VI={}){const c=pubCfg();return{co:c.company||'',logo:c.logo||'',lz:lzOf(c.logoSz),contact:c.contact||'',note:c.note||'',made:new Date().toLocaleDateString('pt-BR'),
@@ -5950,23 +5963,32 @@ async function sstSave(path,nm,blob){if(!SYNC.dir||SYNC.need||READONLY)return fa
 /* fotos da vistoria na pasta da linha: vistorias-seguranca/<linha>/fotos/<código>_<data>_<n>.jpg */
 async function sstFotos(line,p,at,datas){if(!datas?.length||READONLY)return;const d=String(at||nowIso()).slice(0,10),nm=k=>(p.code||p.id)+'_'+d+'_'+(k+1)+'.jpg';let n=0;
  /* 2.16: sem a pasta conectada, as fotos vão pelo script (gravar_, b64); o resultado é conferido e avisado */
- if(!SYNC.dir||SYNC.need){const u=pubUrl();if(!isGasUrl(u)||!CAT_READY){toast('As fotos da vistoria ficaram só neste computador: conecte a pasta (💾 Dados) ou o link do script.','warn',9000);return;}
-  for(let k=0;k<datas.length;k++){try{const j=await fetch(u,{method:'POST',body:JSON.stringify({t:campoKey(),acao:'gravar',caminho:[SST_DIR,sstSlug(line),'fotos'],nome:sstSlug(nm(k)),b64:String(datas[k]).split(',')[1]||'',tipo:(/^data:([^;,]+)/.exec(datas[k])||[])[1]||'image/jpeg'})}).then(r=>r.json()).catch(()=>null);if(j?.ok)n++;}catch(e){}}}
+ if(!SYNC.dir||SYNC.need){if(!liveUrl()||!CAT_READY){toast('As fotos da vistoria ficaram só neste computador: conecte a pasta (💾 Dados) ou o link do script.','warn',9000);return;}
+  /* 3.0.2: livePost leva a chave E o login Google — o fetch só com a chave era recusado na versão web e a foto ficava só neste navegador */
+  for(let k=0;k<datas.length;k++){try{const j=await livePost({acao:'gravar',caminho:[SST_DIR,sstSlug(line),'fotos'],nome:sstSlug(nm(k)),b64:String(datas[k]).split(',')[1]||'',tipo:(/^data:([^;,]+)/.exec(datas[k])||[])[1]||'image/jpeg'}).catch(()=>null);if(j?.ok)n++;}catch(e){}}}
  else for(let k=0;k<datas.length;k++){try{if(await sstSave([SST_DIR,sstSlug(line),'fotos'],nm(k),await(await fetch(datas[k])).blob()))n++;}catch(e){}}
  if(n<datas.length)toast((datas.length-n)+' de '+datas.length+' foto(s) da vistoria não foram gravadas no Drive (ficaram neste computador). Tente de novo com a pasta conectada.','warn',9000);}
 function acSstView(){const T=sstTrips();if(!T.length)return '<div class="note info">Nenhuma viagem vigente na Base ativa.</div>';if(!T.some(t=>t.id===SST_RID))SST_RID=T[0].id;const rt=CAT.routes[SST_RID],P=sstPoints(rt),done=P.filter(x=>sstOf(x.p.id)).length,fold=sstSlug(sstLine(rt));
- return `<div class="sec"><h3>🦺 Vistorias de segurança dos pontos</h3><label class="field"><span>Linha e sentido</span><select data-sstf="rid">${T.map(t=>`<option value="${t.id}" ${t.id===SST_RID?'selected':''}>${esc((t.client?t.client+' · ':'')+sstLine(t)+' · '+t.dir+(t.time?' · '+t.time:''))}</option>`).join('')}</select></label>
+ return `<div class="sec"><h3>🦺 Vistorias de segurança dos pontos</h3>${sstPicker(T,rt)}
  ${acBar(done,P.length,done+' de '+P.length+' ponto(s) com vistoria de segurança')}
  <div class="actions"><button class="primary" data-act="sstDoc" data-rid="${rt.id}" title="Todos os pontos da linha neste sentido, um por página; ponto sem vistoria sai como pendência">📚 Relatório da linha (1 ponto por página)</button><button data-act="sstSaveAll" data-rid="${rt.id}" ${SYNC.dir?'':'disabled'} title="Grava na pasta do projeto o relatório da linha e um arquivo por ponto">💾 Salvar tudo na pasta</button></div>
  <details class="adv"><summary>Onde ficam os arquivos</summary><p class="muted small">Na pasta do projeto: <b>${SST_DIR} › ${esc(fold)}</b> (relatório por sentido), <b>› pontos</b> (um arquivo por ponto) e <b>› fotos</b>. Para PDF: abra o relatório → Imprimir → Salvar como PDF.</p></details></div>
  ${sstFiltBar(P)}<div class="sec"><div class="catlist">${P.filter(x=>sstFiltOk(x,SST_F)).map(x=>{const v=sstOf(x.p.id),c=v&&(SST_CLS[v.sst.cls]||SST_CLS.nao_avaliado);return `<div class="catrow"><div class="ci"><b>${x.n}. ${esc(catPointLabel(x.p))}</b> <span class="muted small">${esc(x.p.code||'')}</span><div class="row" style="gap:4px;margin-top:2px">${v?`<span class="chip ${c[1]}">${c[0]}</span><span class="muted small">${fdate(v.at)} · ${esc(v.by||'')}${v.sst.nivel?' · risco '+esc(v.sst.nivel):''}</span>`:'<span class="chip warn">pendente</span>'}</div></div><span class="row" style="flex-wrap:nowrap;gap:3px"><button class="sm edit-only" data-act="sstVist" data-pid="${x.p.id}" data-rid="${rt.id}" title="${v?'Nova vistoria de segurança deste ponto':'Fazer a vistoria de segurança deste ponto'}" aria-label="Vistoriar">🦺</button><button class="sm" data-act="sstOne" data-pid="${x.p.id}" data-rid="${rt.id}" title="Relatório deste ponto" aria-label="Relatório do ponto">📄</button></span></div>`;}).join('')||'<p class="muted small" style="margin:6px 0">Nenhum ponto neste filtro.</p>'}</div></div>`;}
-/* 3.0: filtro por situação, como as listas de pendência de inspeção; “Pendências” = sem vistoria, condicionado ou não recomendado */
+/* 3.0.2: seletor em cascata — linha uma vez só (ordem natural), depois o sentido e, se houver 2+ viagens no sentido, o horário */
+const sstLk=t=>(t.client||'')+'|'+sstLine(t);
+function sstPicker(T,rt){const L=new Map();for(const t of T){const k=sstLk(t);if(!L.has(k))L.set(k,[]);L.get(k).push(t);}const ks=[...L.keys()].sort((a,b)=>a.localeCompare(b,'pt',{numeric:true})),mine=L.get(sstLk(rt))||[rt];
+ const best=k=>{const l=L.get(k);return(l.find(t=>t.dir===rt.dir)||l[0]).id;},dirs=['IDA','VOLTA'].filter(d=>mine.some(t=>t.dir===d)),same=mine.filter(t=>t.dir===rt.dir).sort((a,b)=>String(a.time||'').localeCompare(String(b.time||'')));
+ const pill=(t,l,on,tip)=>`<button type="button" class="${on?'on':''}" data-act="sstPick" data-rid="${t.id}" aria-pressed="${on}" title="${esc(tip)}">${esc(l)}</button>`;
+ return `<div class="sstpick"><label class="field"><span>Linha</span><select data-sstf="rid" aria-label="Linha">${ks.map(k=>{const t=L.get(k)[0];return `<option value="${best(k)}" ${k===sstLk(rt)?'selected':''}>${esc((t.client?t.client+' · ':'')+sstLine(t))}</option>`;}).join('')}</select></label>
+ <div class="sstseg" role="group" aria-label="Sentido"><span class="lb">Sentido</span>${dirs.map(d=>{const t=mine.filter(x=>x.dir===d).sort((a,b)=>String(a.time||'').localeCompare(String(b.time||'')))[0];return pill(t,d,rt.dir===d,d+(t.time?' · '+t.time:''));}).join('')}${same.length===1&&rt.time?`<span class="muted small" title="Horário desta viagem">${esc(rt.time)}</span>`:''}</div>
+ ${same.length>1?`<div class="sstseg" role="group" aria-label="Horário"><span class="lb">Horário</span>${same.map(t=>pill(t,t.time||'sem horário',t.id===rt.id,rt.dir+' · '+(t.time||'sem horário'))).join('')}</div>`:''}</div>`;}
+/* 3.0.2: cada chip é uma situação só (antes “Pendências” somava sem vistoria + condicionado + não recomendado); “Pendentes” = sem vistoria */
 const sstK=x=>{const v=sstOf(x.p.id);return !v?'sem':v.sst?.cls||'nao_avaliado';};
-const sstFiltOk=(x,f)=>f==='todos'?true:f==='pend'?['sem','condicionado','nao_recomendado','nao_avaliado'].includes(sstK(x)):sstK(x)===f;
-function sstFiltBar(P){const F=[['pend','Pendências'],['todos','Todos'],['sem','Sem vistoria'],['adequado','Adequado'],['condicionado','Condicionado'],['nao_recomendado','Não recomendado']];
- return `<div class="sstf" role="group" aria-label="Filtrar pontos pela situação">${F.map(([k,l])=>{const n=P.filter(x=>sstFiltOk(x,k)).length;if(!n&&k!=='pend'&&k!=='todos'&&k!==SST_F)return '';return `<button type="button" class="${SST_F===k?'on':''} ${k}" data-act="sstFilt" data-v="${k}" aria-pressed="${SST_F===k}">${l} <b>${n}</b></button>`;}).join('')}</div>`;}
+const sstFiltOk=(x,f)=>f==='todos'?true:sstK(x)===(f==='pend'?'sem':f);
+function sstFiltBar(P){const F=[['todos','Todos'],['sem','Pendentes'],['adequado',SST_CLS.adequado[0]],['condicionado',SST_CLS.condicionado[0]],['nao_recomendado',SST_CLS.nao_recomendado[0]],['nao_avaliado',SST_CLS.nao_avaliado[0]]];if(SST_F==='pend')SST_F='sem';
+ return `<div class="sstf" role="group" aria-label="Filtrar pontos pela situação">${F.map(([k,l])=>{const n=P.filter(x=>sstFiltOk(x,k)).length;if(!n&&k!=='todos'&&k!=='sem'&&k!==SST_F)return '';return `<button type="button" class="${SST_F===k?'on':''} ${k}" data-act="sstFilt" data-v="${k}" aria-pressed="${SST_F===k}">${l} <b>${n}</b></button>`;}).join('')}</div>`;}
 /* uma página A4 deitada por ponto, no formato do modelo do cliente */
-async function sstPage(rt,x){const p=x.p,v=sstOf(p.id),c=pubCfg(),f=frenteOf(rt.client||''),ph=[];for(const id of(v?.photos||[]).slice(0,5)){const t=await photoThumb(id);if(t)ph.push(t);}
+async function sstPage(rt,x,M){const p=x.p,v=sstOf(p.id),c=pubCfg(),f=frenteOf(rt.client||''),ph=[];for(const id of(v?.photos||[]).slice(0,5)){const t=await photoThumb(id);if(t)ph.push(t);}if(M&&v&&ph.length<Math.min(5,(v.photos||[]).length))M.push(p.code||p.id);
  return sstPageHtml({client:rt.client||'',line:sstLine(rt),name:rt.name||'',dir:rt.dir,n:x.n,tot:x.tot,label:catPointLabel(p),code:p.code||'',lat:p.lat,lon:p.lon,v:v&&{at:v.at,by:v.by,mat:v.mat,sst:v.sst,ver:v.ver,np:(v.photos||[]).length},ph,logo:c.logo||'',flogo:f?.logo||'',company:c.company||''});}
 /* uma página A4 deitada por ponto, no formato do modelo do cliente. Só recebe dados — a MESMA função está no app de campo (mantenha iguais).
    d = {client,line,name,dir,n,tot,label,code,lat,lon,v:{at,by,mat,sst,ver,np}|null,ph:[dataURL],logo,flogo,company} */
@@ -6006,9 +6028,9 @@ footer{margin-top:auto;border-top:1px solid #d7dde4;padding-top:3px;font-size:9.
 .pr{position:fixed;right:14px;top:14px;font:600 14px Arial;padding:10px 14px;border:0;border-radius:10px;background:${col};color:#fff;cursor:pointer}
 @media print{body{background:#fff}.pg{margin:0;box-shadow:none;width:auto;min-height:0;height:194mm}.pr{display:none}}@page{size:A4 landscape;margin:8mm}
 </style></head><body><button class="pr" onclick="print()">🖨 Imprimir / PDF</button>${pages.join('')}</body></html>`;}
-async function sstBuild(rid,pid){const rt=CAT.routes[rid];if(!rt)return null;const P=sstPoints(rt).map((x,i,a)=>({...x,tot:a.length})),list=pid?P.filter(x=>x.p.id===pid):P,pages=[];for(const x of list)pages.push(await sstPage(rt,x));
- const line=sstLine(rt),title=pid?`${line} ${rt.dir} — ponto ${list[0]?.n} ${list[0]?.p.code||''}`:`${line} ${rt.dir} — vistorias de segurança`;return{rt,line,title,html:sstDocHtml('Vistoria de segurança · '+title,pages),n:list.length,pend:list.filter(x=>!sstOf(x.p.id)).length,list};}
-function sstOpenDlg(b,saved){dialog('Relatório de vistoria de segurança',`<p style="margin-top:0"><b>${esc(b.title)}</b> — ${b.n} página(s)${b.pend?', '+b.pend+' pendente(s)':''}.</p><p class="muted small">${saved?'✓ Gravado na pasta do projeto: <b>'+esc(saved)+'</b>.':SYNC.dir?'':'Pasta do projeto não conectada: use ⬇ Baixar.'} Para PDF: abra e use 🖨 Imprimir → Salvar como PDF (A4 deitado).</p>`,
+async function sstBuild(rid,pid){const rt=CAT.routes[rid];if(!rt)return null;const P=sstPoints(rt).map((x,i,a)=>({...x,tot:a.length})),list=pid?P.filter(x=>x.p.id===pid):P,pages=[],miss=[];photoRetry(list.flatMap(x=>sstOf(x.p.id)?.photos||[]));if(list.some(x=>(sstOf(x.p.id)?.photos||[]).length))showProgress('Buscando as fotos das vistorias…');try{for(const x of list)pages.push(await sstPage(rt,x,miss));}finally{hideProgress();}
+ const line=sstLine(rt),title=pid?`${line} ${rt.dir} — ponto ${list[0]?.n} ${list[0]?.p.code||''}`:`${line} ${rt.dir} — vistorias de segurança`;if(miss.length)toast('⚠ '+miss.length+' ponto(s) com foto registrada que não carregou: '+miss.slice(0,6).join(', ')+(miss.length>6?'…':'')+'. Confira a internet e o link do script e gere de novo.','warn',12000);return{rt,line,title,html:sstDocHtml('Vistoria de segurança · '+title,pages),n:list.length,pend:list.filter(x=>!sstOf(x.p.id)).length,list,miss};}
+function sstOpenDlg(b,saved){dialog('Relatório de vistoria de segurança',`<p style="margin-top:0"><b>${esc(b.title)}</b> — ${b.n} página(s)${b.pend?', '+b.pend+' pendente(s)':''}.</p>${b.miss?.length?`<div class="note warn small" role="alert"><b>⚠ Foto não carregada em ${b.miss.length} ponto(s):</b> ${esc(b.miss.join(', '))}. Nesses pontos o relatório sai com “Sem foto”, mas a vistoria tem foto registrada. Confira a internet e o link do script e gere de novo.</div>`:''}<p class="muted small">${saved?'✓ Gravado na pasta do projeto: <b>'+esc(saved)+'</b>.':SYNC.dir?'':'Pasta do projeto não conectada: use ⬇ Baixar.'} Para PDF: abra e use 🖨 Imprimir → Salvar como PDF (A4 deitado).</p>`,
  [['Fechar',null],['⬇ Baixar (HTML)',()=>{dlBrowser(new Blob([b.html],{type:'text/html'}),sstSlug(b.title)+'.html');return false;}],['↗ Abrir para imprimir / PDF',()=>{const u=URL.createObjectURL(new Blob([b.html],{type:'text/html'}));window.open(u,'_blank');setTimeout(()=>URL.revokeObjectURL(u),60000);return false;}]]);}
 async function sstDoc(rid){const b=await sstBuild(rid);if(!b)return;const path=[SST_DIR,sstSlug(b.line)],nm=b.line+' '+b.rt.dir+' - relatorio da linha.html',ok=await sstSave(path,nm,new Blob([b.html],{type:'text/html'}));sstOpenDlg(b,ok?path.join(' › ')+' › '+sstSlug(nm):'');}
 async function sstOne(rid,pid){const b=await sstBuild(rid,pid);if(!b||!b.n)return;const x=b.list[0],path=[SST_DIR,sstSlug(b.line),'pontos'],nm=b.line+' '+b.rt.dir+' - '+String(x.n).padStart(2,'0')+' '+(x.p.code||'')+'.html',ok=await sstSave(path,nm,new Blob([b.html],{type:'text/html'}));sstOpenDlg(b,ok?path.join(' › ')+' › '+sstSlug(nm):'');}
@@ -6855,6 +6877,7 @@ const HELP=[
 <p class="small">Se a rede da empresa bloquear api.anthropic.com, o assistente avisa e a busca continua funcionando.</p>`},
 {id:'g-campo',m:'geral',t:'Vistoria no celular (Estúdio de Rotas Campo)',k:'campo celular vistoria pacote fotos gps checklist importar resultado',at:['dlg:pacote para vistoria no celular','dlg:vistorias do celular','h:base ativa e vistoria em campo'],go:{mod:'base',view:'pontos'},b:`
 <p><b>Corrigir uma vistoria de segurança já enviada</b> (app 2.12): abra o ponto e toque em vistoriar. O formulário já vem com os dados da última vistoria, mesmo que tenha sido feita em outro celular ou no computador. As fotos dela continuam valendo: mude só o que precisa, acrescente só a foto que faltava e salve. A nova versão (v2, v3…) substitui a anterior, e o histórico fica no relatório.</p>
+<p><b>Campo → Segurança (3.0.2)</b>: escolha a <b>linha</b> (cada uma aparece uma vez), depois o <b>sentido</b> (IDA/VOLTA) e, se o sentido tiver mais de um horário, o <b>horário</b>. Os chips filtram uma situação de cada vez: <b>Todos</b>, <b>Pendentes</b> (só os pontos sem vistoria), Adequado, Uso Condicionado, Não Recomendado e Não Avaliado. Ao gerar o relatório, o Estúdio busca as fotos de novo (deste computador, da pasta do projeto ou do Drive pelo script); se alguma foto registrada não carregar, ele avisa com os códigos dos pontos em vez de sair “Sem foto” calado.</p>
 <ol><li>No computador: <b>📱 Pacote de vistoria (celular)</b> (Base ativa → Pontos, ou Planejamento → Exportar). Escolha as rotas/viagens: o pacote leva pontos, horários, quantidade de passageiros e a situação da vistoria.</li>
 <li>No celular: com o servidor da empresa, abra o endereço <b>/campo/</b> do servidor; sem servidor, envie o arquivo <b>Rota_Studio_Campo.html</b> e abra no Chrome do Android. Carregue o pacote.</li>
 <li>Em cada ponto: checklist de segurança (iluminação, calçada, espaço para parar, visibilidade, travessia, abrigo, acessibilidade), fotos, observação e, se preciso, a posição corrigida pelo GPS.</li>
@@ -8334,9 +8357,22 @@ function foto_(p) {
   const raiz = raiz_(); let f = null;
   if (p.id) { try { f = DriveApp.getFileById(String(p.id).slice(0, 80)); } catch (x) { f = null; } }
   else if (p.l && p.n) {
-    const vs = raiz.getFoldersByName(p.a ? 'acompanhamentos-fotos' : 'vistorias-seguranca'), ls = vs.hasNext() ? vs.next().getFoldersByName(slug_(p.l)) : null;   // a=1: acompanhamento (sem subpasta fotos)
-    let d = null; if (ls && ls.hasNext()) { const P = ls.next(); if (p.a) d = P; else { const fs = P.getFoldersByName('fotos'); if (fs.hasNext()) d = fs.next(); } }
-    if (d) String(p.n).split('|').slice(0, 4).some(function (n) { f = ultimo_(d, String(n).replace(/[\\\\/]/g, '_').slice(0, 160)); return !!f; });
+    /* 3.0.2: todas as pastas com o nome da linha (donos diferentes), depois as outras linhas, depois "<ponto>_<data>_…_<k>.jpg" */
+    const nomes = String(p.n).split('|').slice(0, 4).map(function (n) { return String(n).split('/').join('_').split(String.fromCharCode(92)).join('_').slice(0, 160); }).filter(String);
+    const arvs = [], vs = raiz.getFoldersByName(p.a ? 'acompanhamentos-fotos' : 'vistorias-seguranca'); while (vs.hasNext()) arvs.push(vs.next());   // a=1: acompanhamento (sem subpasta fotos)
+    const dirs = function (P) { if (p.a) return [P]; const o = [], it = P.getFoldersByName('fotos'); while (it.hasNext()) o.push(it.next()); return o; };
+    const busca = function (Ps) { Ps.some(function (P) { return dirs(P).some(function (d) { return nomes.some(function (n) { f = ultimo_(d, n); return !!f; }); }); }); };
+    const linha = [], outras = [];
+    arvs.forEach(function (A) { const it = A.getFoldersByName(slug_(p.l)); while (it.hasNext()) linha.push(it.next()); });
+    busca(linha);
+    if (!f) { arvs.forEach(function (A) { const it = A.getFolders(); while (it.hasNext()) { const P = it.next(); if (!linha.some(function (x) { return x.getId() === P.getId(); })) outras.push(P); } }); busca(outras); }
+    if (!f && !p.a) nomes.some(function (n) {
+      const m = /^(.+_[0-9]{4}-[0-9]{2}-[0-9]{2})_(?:[a-z0-9]{1,8}_)?([0-9]+)[.]jpe?g$/i.exec(n); if (!m) return false;
+      const pre = m[1] + '_', fim = new RegExp('_' + m[2] + '[.]jpe?g$', 'i');
+      return linha.concat(outras).some(function (P) { return dirs(P).some(function (d) {
+        const it = d.searchFiles('title contains "' + pre.split('"').join('') + '"');
+        while (it.hasNext()) { const x = it.next(); if (x.getName().indexOf(pre) === 0 && fim.test(x.getName())) { f = x; return true; } }
+        return false; }); }); });
   }
   if (!f) return json_({ ok: false, erro: 'foto não encontrada' });
   let x = f, ok = false, fotos = false;
@@ -8759,7 +8795,7 @@ function emoIcons(root){if(!root)return;if(root.nodeType===3){const e=root.paren
  const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{acceptNode:n=>n.parentElement?.closest(EMO_SKIP)?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT}),L=[];let n;while((n=w.nextNode()))if(EMO_RE.test(n.data))L.push(n);L.forEach(emoText);}
 const EMO_OB=new MutationObserver(ms=>{for(const m of ms){if(m.type==='characterData')emoIcons(m.target);else for(const n of m.addedNodes)emoIcons(n);}});
 EMO_OB.observe(document.body,{childList:true,subtree:true,characterData:true});emoIcons(document.body);
-let SST_F='pend';
+let SST_F='todos';
 /* menus (details): Esc e clique fora fecham */
 document.addEventListener('keydown',e=>{if(e.key!=='Escape')return;const d=document.querySelector('details.menu[open],details.lhint[open]');if(d){d.open=false;d.querySelector('summary')?.focus();}});
 document.addEventListener('click',e=>{for(const d of document.querySelectorAll('details.menu[open],details.lhint[open]'))if(!d.contains(e.target))d.open=false;});
@@ -8767,7 +8803,7 @@ document.addEventListener('click',e=>{for(const d of document.querySelectorAll('
 if(window.ResizeObserver&&$('metrics'))new ResizeObserver(()=>kpiH()).observe($('metrics'));
 document.addEventListener('change',e=>{const t=e.target;if(t.matches?.('[data-popt]')){portalOptSet(t.dataset.popt,t.checked);if(t.dataset.popt==='gestor'&&!t.checked)PUB.gview=false;pubTools(true);pubRender();}
  else if(t.matches?.('[data-gcode]')){if(!gestorCode(t.value)){toast('Código do gestor: use de 6 a 24 letras minúsculas ou números.','warn');t.value=gestorCode();}else{toast('Código do gestor gravado neste navegador.','ok');pubRender();}}});
-const SHELL_ACT={pubGview:el=>{PUB.gview=el.dataset.v==='1';pubTools(true);pubRender();},sstFilt:el=>{SST_F=el.dataset.v||'pend';renderTab();},panelToggle:()=>panelToggle(),config:el=>openConfig(el?.dataset?.t||'integ'),cmdk:()=>cmdOpen(),keys:()=>keysDlg(),crumbRoute:()=>{if(PANEL_OFF)panelToggle(true);const s=$('routeSel');s?.focus();try{s?.showPicker?.();}catch{}}};
+const SHELL_ACT={pubGview:el=>{PUB.gview=el.dataset.v==='1';pubTools(true);pubRender();},sstFilt:el=>{SST_F=el.dataset.v||'todos';renderTab();},sstPick:el=>{if(CAT.routes[el.dataset.rid])SST_RID=el.dataset.rid;renderTab();},panelToggle:()=>panelToggle(),config:el=>openConfig(el?.dataset?.t||'integ'),cmdk:()=>cmdOpen(),keys:()=>keysDlg(),crumbRoute:()=>{if(PANEL_OFF)panelToggle(true);const s=$('routeSel');s?.focus();try{s?.showPicker?.();}catch{}}};
 document.addEventListener('keydown',e=>{const typing=/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)||e.target.isContentEditable,dlg=document.querySelector('dialog[open]');
  if((e.ctrlKey||e.metaKey)&&!e.altKey&&e.key.toLowerCase()==='k'){if(dlg)return;e.preventDefault();cmdOpen();return;}
  if(typing||dlg||e.ctrlKey||e.metaKey||e.altKey)return;
